@@ -1,4 +1,4 @@
-  name: Deploy to GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
   push:
@@ -12,8 +12,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    # REMOVED the 'defaults' section because we want to run in the root now.
 
     steps:
       - name: Checkout
@@ -26,7 +24,6 @@ jobs:
 
       - name: Install Dependencies
         run: npm install
-        # This now runs in the root, finding package.json correctly
 
       - name: Build App
         run: npm run build
@@ -37,7 +34,6 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # UPDATED: This now points to the 'dist' folder in the root
           path: dist
 
   deploy:
