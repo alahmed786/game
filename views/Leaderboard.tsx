@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Player, Theme, LeaderboardViewProps } from '../types';
 
@@ -92,9 +91,15 @@ const LeaderboardView: React.FC<LeaderboardViewProps> = ({ player, theme, referr
 
   const earnedStars = player.referralCount * referralReward;
   
-  // Logic: Show top 10. If user is NOT in top 10, show user at the bottom.
-  const top10 = leaderboardData.slice(0, 10);
-  const userInTop10 = top10.some(p => p.telegramId === player.telegramId);
+  // ✅ LOGIC UPGRADE: Slice top 9 players only
+  const top9 = leaderboardData.slice(0, 9);
+  
+  // Check if current user is inside that top 9
+  const userInTop9 = top9.some(p => p.telegramId === player.telegramId);
+
+  // If user is already in top 9, just show the top 9.
+  // We do NOT add them again at the bottom.
+  const displayList = top9;
 
   return (
     <div className="pt-6 px-4 pb-32 flex flex-col gap-8">
@@ -159,14 +164,15 @@ const LeaderboardView: React.FC<LeaderboardViewProps> = ({ player, theme, referr
             <span>🏆</span> Top Commanders
         </h3>
         
-        {top10.length === 0 ? (
+        {leaderboardData.length === 0 ? (
             <div className="text-center py-12 text-slate-600 text-xs font-mono border border-dashed border-slate-800 rounded-2xl bg-slate-900/30 backdrop-blur-sm flex flex-col items-center gap-2">
                 <span className="text-3xl opacity-20 grayscale">📶</span>
                 <span>NO DATA UPLINK</span>
             </div>
         ) : (
             <div className="flex flex-col gap-3">
-                {top10.map((leader, index) => (
+                {/* 1. Show Top 9 Players */}
+                {displayList.map((leader, index) => (
                     <PlayerRow 
                         key={leader.telegramId || index} 
                         player={leader} 
@@ -176,7 +182,8 @@ const LeaderboardView: React.FC<LeaderboardViewProps> = ({ player, theme, referr
                     />
                 ))}
 
-                {!userInTop10 && (
+                {/* 2. If user is NOT in Top 9, show them at the bottom */}
+                {!userInTop9 && (
                     <>
                         <div className="text-center py-2 text-slate-600 text-2xl tracking-widest opacity-50 font-black animate-pulse">
                             • • •
