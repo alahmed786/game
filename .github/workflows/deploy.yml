@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+  name: Deploy to GitHub Pages
 
 on:
   push:
@@ -12,10 +12,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # This sets the default directory for all 'run' commands in this job
-    defaults:
-      run:
-        working-directory: aliens/dist
+    
+    # REMOVED the 'defaults' section because we want to run in the root now.
 
     steps:
       - name: Checkout
@@ -28,6 +26,7 @@ jobs:
 
       - name: Install Dependencies
         run: npm install
+        # This now runs in the root, finding package.json correctly
 
       - name: Build App
         run: npm run build
@@ -38,8 +37,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Note: We point to aliens/dist because the build happens inside aliens
-          path: aliens/dist
+          # UPDATED: This now points to the 'dist' folder in the root
+          path: dist
 
   deploy:
     environment:
