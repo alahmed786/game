@@ -83,6 +83,42 @@ const App: React.FC = () => {
      showAd(adminConfig.adUnits, onComplete, onError);
   };
 
+  // --- ✅ REAL-TIME UPDATES SUBSCRIPTION ---
+  useEffect(() => {
+    // Subscribe to changes in the 'players' table
+    const subscription = supabase
+      .channel('public:players')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload: any) => {
+        
+        // When a player updates, update our local leaderboard list (allPlayers)
+        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+           const newPlayer = payload.new;
+           setAllPlayers(prev => {
+              // Remove the old version of this player
+              const filtered = prev.filter(p => p.telegramId !== newPlayer.telegramid);
+              // Add the new version (convert to camelCase)
+              const mappedPlayer: any = {
+                 telegramId: newPlayer.telegramid,
+                 username: newPlayer.username || 'Unknown',
+                 photoUrl: newPlayer.gamestate?.photoUrl || null,
+                 balance: newPlayer.balance,
+                 level: newPlayer.level,
+                 stars: newPlayer.stars,
+                 referralCount: newPlayer.referralcount
+              };
+              // Sort by balance descending
+              const newList = [...filtered, mappedPlayer].sort((a, b) => b.balance - a.balance);
+              return newList;
+           });
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, []);
+
   // --- Initialization & Backend Sync ---
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
@@ -163,14 +199,15 @@ const App: React.FC = () => {
                     // ✅ MAP DB -> APP: 'telegramid' -> 'telegramId'
                     telegramId: remotePlayer.telegramid, 
                     username: remotePlayer.username,
-                    photoUrl: userData?.photo_url,
                     balance: Number(remotePlayer.balance), 
                     level: remotePlayer.level,
                     stars: remotePlayer.stars,
-                    referralCount: remotePlayer.referralCount || 0,
+                    referralCount: remotePlayer.referralcount || 0, // ✅ Fix: Lowercase map
                     invitedBy: remotePlayer.invitedBy,
                     // ✅ MAP DB -> APP: 'gamestate' (lowercase) -> 'gameState'
-                    ...remotePlayer.gamestate 
+                    ...remotePlayer.gamestate,
+                    // ✅ FIX: Force use current Telegram photo if available
+                    photoUrl: userData?.photo_url || remotePlayer.gamestate?.photoUrl 
                 };
 
                 if (remotePlayer.gamestate && remotePlayer.gamestate.upgrades) {
@@ -224,7 +261,6 @@ const App: React.FC = () => {
 
   // --- Data Persistence ---
   const savePlayerToSupabase = async (currentPlayer: Player, currentUpgrades: Upgrade[]) => {
-      // ✅ SAFETY CHECK: Ensure we have an ID
       if (!currentPlayer || !currentPlayer.telegramId) return;
 
       const { telegramId, username, balance, level, stars, referralCount, invitedBy, ...gameState } = currentPlayer;
@@ -238,6 +274,7 @@ const App: React.FC = () => {
               balance: balance,
               level: level,
               stars: stars,
+              referralcount: referralCount || 0, // ✅ Fix: Lowercase map
               gamestate: fullGameState, // ✅ Lowercase 'gamestate'
               lastupdated: new Date().toISOString() // ✅ Lowercase 'lastupdated'
           }, { onConflict: 'telegramid' }); // ✅ Lowercase Primary Key
@@ -245,7 +282,7 @@ const App: React.FC = () => {
           if (error) {
               console.error("❌ Save Failed:", error.message);
           } else {
-              console.log("✅ Saved to Supabase");
+              // console.log("✅ Saved to Supabase");
           }
       } catch (err) {
           console.error("Save Exception:", err);
