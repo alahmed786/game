@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 // Access environment variables safely.
@@ -9,150 +8,113 @@ const SUPABASE_URL = env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.warn("⚠️ Supabase environment variables are missing. Please check your .env file. The app will run in offline/demo mode.");
+    console.warn("⚠️ Supabase environment variables are missing. Please check your .env file.");
 }
 
-// Fallback to prevent crash if keys are missing.
-const url = SUPABASE_URL || 'https://placeholder.supabase.co';
-const key = SUPABASE_ANON_KEY || 'placeholder-key';
-
-export const supabase = createClient(url, key);
+// Create the client
+export const supabase = createClient(
+    SUPABASE_URL || 'https://placeholder.supabase.co', 
+    SUPABASE_ANON_KEY || 'placeholder-key'
+);
 
 /**
- * Logs application errors to the Supabase 'error_logs' table.
+ * 1. Fetch Top 50 Players (Leaderboard)
+ * maps lowercase DB columns (telegramid) to uppercase App types (telegramId)
+ */
+export const fetchLeaderboard = async () => {
+    const { data, error } = await supabase
+        .from('players')
+        .select('telegramid, username, balance, level, stars, referralCount') // Select fields
+        .order('balance', { ascending: false })
+        .limit(50);
+
+    if (error) {
+        console.error("Error fetching leaderboard:", error);
+        return [];
+    }
+
+    // ✅ IMPORTANT: Map lowercase DB keys to CamelCase for the UI
+    return data.map((p: any) => ({
+        telegramId: p.telegramid,
+        username: p.username || 'Unknown',
+        balance: p.balance,
+        level: p.level,
+        stars: p.stars,
+        referralCount: p.referralCount
+    }));
+};
+
+/**
+ * 2. Fetch User Rank
+ * Calculates rank by counting how many people have more coins
+ */
+export const fetchUserRank = async (userBalance: number) => {
+    const { count, error } = await supabase
+        .from('players')
+        .select('*', { count: 'exact', head: true })
+        .gt('balance', userBalance);
+
+    if (error) return 0;
+    return (count || 0) + 1; // Rank is count + 1
+};
+
+/**
+ * 3. Fetch Game Settings (Admin Config)
+ */
+export const fetchGameSettings = async () => {
+    const { data, error } = await supabase
+        .from('game_settings')
+        .select('settings')
+        .single();
+    
+    if (error) return null;
+    return data.settings;
+};
+
+/**
+ * 4. Process Referral
+ * Updates the inviter's referral count and awards stars
+ */
+export const processReferral = async (referrerId: string, newUserId: string, rewardStars: number = 10) => {
+    // Prevent self-referral
+    if (referrerId === newUserId) return;
+
+    // Check if referrer exists
+    const { data: referrer, error } = await supabase
+        .from('players')
+        .select('telegramid, stars, referralCount')
+        .eq('telegramid', referrerId)
+        .single();
+
+    if (error || !referrer) return;
+
+    // Give rewards to referrer
+    const newCount = (referrer.referralCount || 0) + 1;
+    const newStars = (referrer.stars || 0) + rewardStars;
+
+    await supabase
+        .from('players')
+        .update({ 
+            referralCount: newCount,
+            stars: newStars 
+        })
+        .eq('telegramid', referrerId);
+};
+
+/**
+ * 5. Log Errors
  */
 export const logError = async (message: string, stack?: string, userId?: string) => {
-    if (url === 'https://placeholder.supabase.co') return;
+    if (SUPABASE_URL === 'https://placeholder.supabase.co') return;
 
     try {
         await supabase.from('error_logs').insert({
             message,
-            stack: stack || '',
+            details: stack || '',
             user_id: userId || 'anonymous',
-            timestamp: new Date().toISOString(),
-            platform: navigator.userAgent
+            created_at: new Date().toISOString()
         });
     } catch (e) {
-        console.error("Failed to upload error log to Supabase", e);
-    }
-};
-
-/**
- * Fetches the top players by balance for the leaderboard.
- */
-export const fetchLeaderboard = async () => {
-    if (url === 'https://placeholder.supabase.co') return [];
-    
-    const { data, error } = await supabase
-        .from('players')
-        .select('username, balance, level, photoUrl, telegramId, stars, referralCount')
-        .order('balance', { ascending: false })
-        .limit(50); // Fetch top 50
-
-    if (error) {
-        console.warn("Error fetching leaderboard:", error.message);
-        return [];
-    }
-    return data;
-};
-
-/**
- * Fetches ALL players (Admin Use Only)
- */
-export const fetchAllPlayersAdmin = async () => {
-    if (url === 'https://placeholder.supabase.co') return [];
-
-    const { data, error } = await supabase
-        .from('players')
-        .select('*')
-        .order('balance', { ascending: false });
-
-    if (error) {
-        console.error("Admin fetch error:", error);
-        return [];
-    }
-    return data;
-}
-
-/**
- * Global Game Settings (Admin Config, Tasks, Deals)
- */
-export const fetchGameSettings = async () => {
-    if (url === 'https://placeholder.supabase.co') return null;
-
-    const { data, error } = await supabase
-        .from('game_settings')
-        .select('settings')
-        .eq('id', 'global')
-        .maybeSingle();
-
-    if (error) {
-        console.error("Error fetching settings:", error);
-        return null;
-    }
-    return data?.settings || null;
-};
-
-export const saveGameSettings = async (settings: any) => {
-    if (url === 'https://placeholder.supabase.co') return;
-
-    const { error } = await supabase
-        .from('game_settings')
-        .upsert({
-            id: 'global',
-            settings: settings,
-            lastUpdated: new Date().toISOString()
-        });
-
-    if (error) console.error("Error saving global settings:", error);
-};
-
-/**
- * Fetches the specific rank of a user based on their balance.
- */
-export const fetchUserRank = async (balance: number) => {
-    if (url === 'https://placeholder.supabase.co') return 999;
-    
-    const { count, error } = await supabase
-        .from('players')
-        .select('*', { count: 'exact', head: true })
-        .gt('balance', balance);
-
-    if (error) {
-        console.warn("Error fetching rank:", error.message);
-        return 999;
-    }
-    
-    return (count || 0) + 1;
-};
-
-/**
- * Handles referral logic
- */
-export const processReferral = async (referrerId: string, newPlayerId: string, rewardStars: number) => {
-    if (url === 'https://placeholder.supabase.co') return;
-
-    try {
-        const { data: referrer, error } = await supabase
-            .from('players')
-            .select('telegramId, referralCount, stars')
-            .eq('telegramId', referrerId)
-            .maybeSingle();
-
-        if (error || !referrer) return;
-
-        const newCount = (referrer.referralCount || 0) + 1;
-        const newStars = (referrer.stars || 0) + rewardStars;
-
-        await supabase
-            .from('players')
-            .update({ 
-                referralCount: newCount,
-                stars: newStars
-            })
-            .eq('telegramId', referrerId);
-            
-    } catch (e) {
-        console.error("Referral processing error:", e);
+        console.error("Failed to upload error log", e);
     }
 };
