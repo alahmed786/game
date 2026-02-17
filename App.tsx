@@ -146,7 +146,7 @@ const App: React.FC = () => {
             }
 
             const [userResult, leaderboardData] = await Promise.all([
-                // ✅ FIX: Use lowercase 'telegramid'
+                // ✅ QUERY DB: Using lowercase 'telegramid'
                 supabase.from('players').select('*').eq('telegramid', telegramId).maybeSingle(),
                 fetchLeaderboard()
             ]);
@@ -157,9 +157,10 @@ const App: React.FC = () => {
             let loadedPlayer: Player;
 
             if (userResult.data) {
+                // Existing Player Found
                 const remotePlayer = userResult.data;
                 const parsedPlayer: Player = {
-                    // ✅ FIX: Map from lowercase 'telegramid'
+                    // ✅ MAP DB -> APP: 'telegramid' -> 'telegramId'
                     telegramId: remotePlayer.telegramid, 
                     username: remotePlayer.username,
                     photoUrl: userData?.photo_url,
@@ -168,10 +169,13 @@ const App: React.FC = () => {
                     stars: remotePlayer.stars,
                     referralCount: remotePlayer.referralCount || 0,
                     invitedBy: remotePlayer.invitedBy,
-                    ...remotePlayer.gameState
+                    // ✅ MAP DB -> APP: 'gamestate' (lowercase) -> 'gameState'
+                    ...remotePlayer.gamestate 
                 };
 
-                if (remotePlayer.gameState.upgrades) setUpgrades(remotePlayer.gameState.upgrades);
+                if (remotePlayer.gamestate && remotePlayer.gamestate.upgrades) {
+                     setUpgrades(remotePlayer.gamestate.upgrades);
+                }
 
                 if (parsedPlayer.hasOfflineEarnings) {
                     const now = Date.now();
@@ -188,6 +192,7 @@ const App: React.FC = () => {
                 loadedPlayer = parsedPlayer;
                 setCanSave(true);
             } else {
+                // New Player
                 const newPlayer = createNewPlayer();
                 if (startParam && startParam !== telegramId) {
                     processReferral(startParam, telegramId, adminConfig.referralRewardStars)
@@ -203,7 +208,8 @@ const App: React.FC = () => {
 
             // @ts-ignore
             const top50 = leaderboardData as Player[] || [];
-            const indexInTop = top50.findIndex((p: Player) => p.telegramId === telegramId);
+            // Map leaderboard data to use camelCase for comparison
+            const indexInTop = top50.findIndex((p: any) => (p.telegramid || p.telegramId) === telegramId);
             setUserRank(indexInTop !== -1 ? indexInTop + 1 : await fetchUserRank(loadedPlayer.balance));
 
         } catch (e) {
@@ -218,36 +224,40 @@ const App: React.FC = () => {
 
   // --- Data Persistence ---
   const savePlayerToSupabase = async (currentPlayer: Player, currentUpgrades: Upgrade[]) => {
+      // ✅ SAFETY CHECK: Ensure we have an ID
       if (!currentPlayer || !currentPlayer.telegramId) return;
 
       const { telegramId, username, balance, level, stars, referralCount, invitedBy, ...gameState } = currentPlayer;
       const fullGameState = { ...gameState, upgrades: currentUpgrades };
 
       try {
-          // ✅ FIX: 'telegramid' lowercase matches DB
-          await supabase.from('players').upsert({
+          // ✅ WRITE TO DB: Using lowercase keys to match schema
+          const { error } = await supabase.from('players').upsert({
               telegramid: telegramId, 
-              username,
-              balance,
-              level,
-              stars,
-              referralCount: referralCount || 0,
-              invitedBy: invitedBy || null,     
-              gameState: fullGameState,
-              lastUpdated: new Date().toISOString()
-          }, { onConflict: 'telegramid' });
-          console.log("✅ Saved to Supabase");
+              username: username,
+              balance: balance,
+              level: level,
+              stars: stars,
+              gamestate: fullGameState, // ✅ Lowercase 'gamestate'
+              lastupdated: new Date().toISOString() // ✅ Lowercase 'lastupdated'
+          }, { onConflict: 'telegramid' }); // ✅ Lowercase Primary Key
+
+          if (error) {
+              console.error("❌ Save Failed:", error.message);
+          } else {
+              console.log("✅ Saved to Supabase");
+          }
       } catch (err) {
           console.error("Save Exception:", err);
       }
   };
 
-  // Auto-save every 10s
+  // Auto-save every 5s
   useEffect(() => {
       if (!canSave) return;
       const saveInterval = setInterval(() => {
           if (playerRef.current) savePlayerToSupabase(playerRef.current, upgradesRef.current);
-      }, 10000); 
+      }, 5000); 
       return () => clearInterval(saveInterval);
   }, [canSave]);
 
@@ -267,7 +277,7 @@ const App: React.FC = () => {
     if (nextLevelRequirement !== undefined && player.balance >= nextLevelRequirement && player.levelUpAdsWatched >= requiredAds) {
         const updated = { ...player, level: player.level + 1, levelUpAdsWatched: 0 };
         setPlayer(updated);
-        savePlayerToSupabase(updated, upgrades); // ✅ Save on Level Up
+        savePlayerToSupabase(updated, upgrades); // ✅ Force Save on Level Up
     }
 
     const newTheme = getLevelTheme(player.level);
@@ -375,7 +385,7 @@ const App: React.FC = () => {
     setPendingHoldReward(null);
     setIsClaimModalVisible(false);
     accumulatedHoldRewardRef.current = 0;
-    savePlayerToSupabase(updated, upgrades); // ✅ Save Immediately
+    savePlayerToSupabase(updated, upgrades); // ✅ Force Save
   };
 
   const handleCancelHoldReward = () => {
@@ -407,38 +417,63 @@ const App: React.FC = () => {
     setPlayer(updatedPlayer);
     setUpgrades(newUpgrades);
     
-    savePlayerToSupabase(updatedPlayer, newUpgrades); // ✅ Save Immediately
+    savePlayerToSupabase(updatedPlayer, newUpgrades); // ✅ Force Save
   };
 
-  // ... (Stellar Deals logic omitted for brevity but similar pattern applies) ...
-  // For safety, I'm pasting the basic version here, but it works same way.
   const processDealPurchase = (deal: StellarDeal) => {
     if (!player) return;
     let updatedPlayer = { ...player };
     if (deal.costType === 'stardust') updatedPlayer.balance -= deal.cost;
     if (deal.costType === 'stars') updatedPlayer.stars -= deal.cost;
     
-    // ... Rewards logic ...
      switch (deal.rewardType) {
-        case 'energy_boost': updatedPlayer.currentEnergy += (deal.rewardValue as number); break;
+        case 'energy_boost': updatedPlayer.currentEnergy = Math.min(updatedPlayer.maxEnergy, updatedPlayer.currentEnergy + (deal.rewardValue as number)); break;
         case 'stardust_boost': updatedPlayer.balance += (deal.rewardValue as number); triggerBalanceAnimation(); break;
-        // ... other cases ...
+        case 'cpt_boost':
+          const cptReward = deal.rewardValue as { multiplier: number, duration: number };
+          const newCptBoost: ActiveBoost = { sourceId: deal.id, type: 'cpt', multiplier: cptReward.multiplier, expiresAt: Date.now() + cptReward.duration };
+          updatedPlayer.activeBoosts = updatedPlayer.activeBoosts.filter(b => b.type !== 'cpt');
+          updatedPlayer.activeBoosts.push(newCptBoost);
+          break;
+        case 'passive_income_boost':
+          const pphReward = deal.rewardValue as { pph: number, duration: number };
+          const newPphBoost: ActiveBoost = { sourceId: deal.id, type: 'passive_income', pph: pphReward.pph, expiresAt: Date.now() + pphReward.duration };
+          updatedPlayer.activeBoosts = updatedPlayer.activeBoosts.filter(b => b.type !== 'passive_income');
+          updatedPlayer.activeBoosts.push(newPphBoost);
+          break;
+        case 'free_upgrade':
+          const availableUpgrades = upgrades.filter(u => u.level < u.maxLevel && (!u.unlockLevel || player.level >= u.unlockLevel));
+          if (availableUpgrades.length > 0) {
+              const cheapestUpgrade = availableUpgrades.reduce((prev, curr) => prev.cost < curr.cost ? prev : curr);
+              updatedPlayer.passivePerHour += (cheapestUpgrade.profitPerHour || 0);
+              updatedPlayer.coinsPerTap += (cheapestUpgrade.cptBoost || 0);
+              updatedPlayer.holdMultiplier += (cheapestUpgrade.holdMultiplierBoost || 0);
+              if (cheapestUpgrade.id === 's5') updatedPlayer.hasOfflineEarnings = true;
+              setUpgrades(prevUpgrades => prevUpgrades.map(u => u.id === cheapestUpgrade.id ? { ...u, level: u.level + 1, cost: Math.floor(u.cost * 1.6) } : u));
+          }
+          break;
     }
     
     if (deal.cooldown) updatedPlayer.lastDealPurchases = { ...updatedPlayer.lastDealPurchases, [deal.id]: Date.now() };
     setPlayer(updatedPlayer);
-    savePlayerToSupabase(updatedPlayer, upgrades); // ✅ Save Immediately
+    savePlayerToSupabase(updatedPlayer, upgrades); // ✅ Force Save
   };
 
   const handleBuyStellarDeal = (deal: StellarDeal) => {
-      // ... logic ...
-      // For brevity in this response: The important part is Immediate Saving in processDealPurchase
+      if (!player) return;
+      if (deal.cooldown) {
+        const lastPurchase = player.lastDealPurchases[deal.id];
+        if (lastPurchase && Date.now() - lastPurchase < deal.cooldown) return;
+      }
+      if (deal.unlockLevel && player.level < deal.unlockLevel) return;
+      if (deal.costType === 'stardust' && player.balance < deal.cost) return;
+      if (deal.costType === 'stars' && player.stars < deal.cost) return;
+      
       if(deal.costType === 'ad') { setDealToProcess(deal); setIsDealAdModalVisible(true); }
       else processDealPurchase(deal);
   };
   const handleConfirmDealAd = () => { if(dealToProcess) processDealPurchase(dealToProcess); setIsDealAdModalVisible(false); setDealToProcess(null); };
 
-  // --- REWARD CLAIM FIX ---
   const handleClaimReward = () => {
     if (!player) return;
     
@@ -456,8 +491,7 @@ const App: React.FC = () => {
     setPlayer(updatedPlayer);
     setView('Earn');
     
-    // ✅ FORCE SAVE IMMEDIATELY so refresh doesn't lose it
-    savePlayerToSupabase(updatedPlayer, upgrades);
+    savePlayerToSupabase(updatedPlayer, upgrades); // ✅ Force Save
   };
   
   const handleSolveCipher = () => {
@@ -466,38 +500,72 @@ const App: React.FC = () => {
     setPlayer(updated);
     triggerBalanceAnimation();
     setView('Earn');
-    savePlayerToSupabase(updated, upgrades); // ✅ Save Immediately
+    savePlayerToSupabase(updated, upgrades); // ✅ Force Save
   };
 
   const handleActivateBooster = () => {
     if (!player) return;
     const updated = { ...player, currentEnergy: player.maxEnergy, lastBoosterClaimed: Date.now() };
     setPlayer(updated);
-    savePlayerToSupabase(updated, upgrades); // ✅ Save Immediately
+    savePlayerToSupabase(updated, upgrades); // ✅ Force Save
   };
 
   const handleWatchLevelUpAd = () => {
       if(!player) return;
       setPlayer(p => p ? ({ ...p, levelUpAdsWatched: p.levelUpAdsWatched + 1 }) : null);
-      // Optional: Save here too if you want strict ad counting
   };
 
   const handleInitiateTask = (task: Task) => {
-    // ... same as before ...
-    if (task.type === 'telegram' || task.type === 'youtube_video') {
-         // ...
+    if (!player) return;
+    if (task.type === 'youtube_video' || task.type === 'youtube_shorts') {
+      setPendingTasks(prev => [...new Set([...prev, task.id])]);
+      if (task.link) window.open(task.link, '_blank');
+      return;
+    }
+    if (task.type === 'telegram') {
+        const isPending = pendingTasks.includes(task.id);
+        if (isPending) {
+            const updatedPlayer = { ...player, balance: player.balance + task.reward, hasFollowedTelegram: true, taskProgress: { ...player.taskProgress, [task.id]: 1 } };
+            setPlayer(updatedPlayer);
+            triggerBalanceAnimation();
+            setPendingTasks(prev => prev.filter(id => id !== task.id)); 
+            savePlayerToSupabase(updatedPlayer, upgrades); // ✅ Force Save
+        } else {
+            setPendingTasks(prev => [...new Set([...prev, task.id])]);
+            if (task.link) {
+                 if (window.Telegram?.WebApp?.openTelegramLink) window.Telegram.WebApp.openTelegramLink(task.link);
+                 else if (window.Telegram?.WebApp?.openLink) window.Telegram.WebApp.openLink(task.link);
+                 else window.open(task.link, '_blank');
+            }
+        }
+        return;
     }
     if (task.type === 'ads') {
-        // ... Logic to update state ...
-        // Ensure you call savePlayerToSupabase(updatedPlayer, upgrades) inside here too!
+        setPlayer(prev => {
+            if (!prev) return null;
+            let updatedPlayer = { ...prev };
+            const currentProgress = updatedPlayer.taskProgress[task.id] || 0;
+            updatedPlayer.taskProgress = { ...updatedPlayer.taskProgress, [task.id]: currentProgress + 1 };
+            updatedPlayer.lastAdWatched = Date.now();
+            if (updatedPlayer.taskProgress[task.id] === task.dailyLimit) {
+                updatedPlayer.balance += task.reward;
+                triggerBalanceAnimation();
+            }
+            return updatedPlayer;
+        });
+        if (playerRef.current) savePlayerToSupabase(playerRef.current, upgrades); // ✅ Force Save
     }
   };
 
-  // ... (Task cancel/claim Logic) ...
+  const handleCancelTask = (taskId: string) => {
+    setPendingTasks(prev => prev.filter(id => id !== taskId));
+  };
+
   const handleClaimTask = (taskId: string, code: string): boolean => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return false;
-    if (code !== (task.secretCode || '1234')) return false;
+    const requiredCode = task.secretCode || '1234';
+    if (code !== requiredCode) return false;
 
     if(!player) return false;
     const updatedPlayer = { ...player, balance: player.balance + task.reward };
@@ -507,13 +575,14 @@ const App: React.FC = () => {
     triggerBalanceAnimation();
     setPendingTasks(prev => prev.filter(id => id !== taskId));
     
-    savePlayerToSupabase(updatedPlayer, upgrades); // ✅ Save Immediately
+    savePlayerToSupabase(updatedPlayer, upgrades); // ✅ Force Save
     return true;
   };
   
   const handleWithdrawal = (withdrawal: Omit<Withdrawal, 'id' | 'timestamp' | 'status' | 'telegramId' | 'username'>) => {
     if (!player) return;
-    // ... logic ...
+    if (player.lastWithdrawalTime && Date.now() - player.lastWithdrawalTime < WITHDRAWAL_COOLDOWN_MS) return; 
+    
     const newWithdrawal: Withdrawal = { ...withdrawal, id: `wd_${Date.now()}`, timestamp: Date.now(), status: 'Pending', telegramId: player.telegramId, username: player.username };
     
     const updated = {
@@ -524,11 +593,9 @@ const App: React.FC = () => {
     };
     setPlayer(updated);
     setGlobalWithdrawals(prev => [newWithdrawal, ...prev]);
-    savePlayerToSupabase(updated, upgrades); // ✅ Save Immediately
+    savePlayerToSupabase(updated, upgrades); // ✅ Force Save
   };
 
-  // ... (Render Logic same as before) ...
-  // ... Paste the Render/Return block here ...
   if (showIntro) return <IntroScreen isDataReady={!!player} onFinished={() => setShowIntro(false)} />;
   if (!player) return <div className="flex h-screen items-center justify-center text-cyan-400 font-bold animate-pulse">RE-ESTABLISHING UPLINK...</div>;
   if (player.isBanned) return <div className="fixed inset-0 bg-red-950 flex flex-col items-center justify-center p-6 text-center z-[1000]"><span className="text-6xl mb-4">🚫</span><h1 className="text-3xl font-black text-red-500 uppercase tracking-widest mb-2">ACCESS DENIED</h1></div>;
