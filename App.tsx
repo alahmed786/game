@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Player, Upgrade, View, FloatingText, Task, StellarDeal, ActiveBoost, Withdrawal, Theme, AdminConfig } from './types';
 import { 
@@ -98,6 +97,7 @@ const App: React.FC = () => {
     const userData = tg?.initDataUnsafe?.user;
     const startParam = tg?.initDataUnsafe?.start_param; 
     
+    // Fallback ID for development
     const telegramId = userData?.id?.toString() || (process.env.NODE_ENV === 'development' ? 'dev_user_123' : 'unknown_user');
     const username = userData?.username || userData?.first_name || 'SpaceCadet';
 
@@ -136,7 +136,7 @@ const App: React.FC = () => {
 
     const initGame = async () => {
         try {
-            // 1. Load Global Config from Supabase (game_settings)
+            // 1. Load Global Config from Supabase
             const globalSettings = await fetchGameSettings();
             if (globalSettings) {
                 if (globalSettings.tasks) setTasks(globalSettings.tasks);
@@ -148,7 +148,8 @@ const App: React.FC = () => {
 
             // 2. Load User & Leaderboard
             const [userResult, leaderboardData] = await Promise.all([
-                supabase.from('players').select('*').eq('telegramId', telegramId).maybeSingle(),
+                // ✅ FIX: Use lowercase 'telegramid' for Supabase query
+                supabase.from('players').select('*').eq('telegramid', telegramId).maybeSingle(),
                 fetchLeaderboard()
             ]);
 
@@ -164,7 +165,8 @@ const App: React.FC = () => {
                 // Existing Player Found
                 const remotePlayer = userResult.data;
                 const parsedPlayer: Player = {
-                    telegramId: remotePlayer.telegramId,
+                    // ✅ FIX: Map from lowercase 'telegramid'
+                    telegramId: remotePlayer.telegramid, 
                     username: remotePlayer.username,
                     photoUrl: userData?.photo_url,
                     balance: Number(remotePlayer.balance), 
@@ -175,8 +177,6 @@ const App: React.FC = () => {
                     ...remotePlayer.gameState
                 };
 
-                // Sync upgrades state if user has them, but don't overwrite global Upgrade defs, just their levels
-                // (Simplified: we rely on gameState.upgrades for now)
                 if (remotePlayer.gameState.upgrades) setUpgrades(remotePlayer.gameState.upgrades);
 
                 // Offline Earnings
@@ -205,6 +205,7 @@ const App: React.FC = () => {
                 }
                 loadedPlayer = newPlayer;
                 setCanSave(true);
+                // Initial Save
                 savePlayerToSupabase(newPlayer, upgrades).catch(e => console.error("Initial Save Failed:", e));
             }
             
@@ -240,16 +241,17 @@ const App: React.FC = () => {
 
       try {
           await supabase.from('players').upsert({
-              telegramId,
+              // ✅ FIX: Use lowercase 'telegramid' for DB column
+              telegramid: telegramId, 
               username,
               balance,
               level,
               stars,
-              referralCount: referralCount || 0, 
-              invitedBy: invitedBy || null,    
+              referralCount: referralCount || 0,
+              invitedBy: invitedBy || null,     
               gameState: fullGameState,
               lastUpdated: new Date().toISOString()
-          });
+          }, { onConflict: 'telegramid' }); // ✅ FIX: Ensure conflict check uses lowercase
       } catch (err) {
           console.error("Save Exception:", err);
       }
@@ -261,7 +263,7 @@ const App: React.FC = () => {
           if (playerRef.current) {
               savePlayerToSupabase(playerRef.current, upgradesRef.current);
           }
-      }, 10000); 
+      }, 10000); // Autosave every 10s
       return () => clearInterval(saveInterval);
   }, [canSave]);
 
@@ -384,7 +386,7 @@ const App: React.FC = () => {
       setPendingHoldReward(accumulatedHoldRewardRef.current);
       setIsClaimModalVisible(true);
     }
-     setCurrentHoldAmount(0);
+      setCurrentHoldAmount(0);
   };
   
   const handleClaimHoldReward = () => {
