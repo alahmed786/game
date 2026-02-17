@@ -15,7 +15,7 @@ jobs:
     # This sets the default directory for all 'run' commands in this job
     defaults:
       run:
-        working-directory: aliens
+        working-directory: aliens/dist
 
     steps:
       - name: Checkout
