@@ -83,20 +83,18 @@ const App: React.FC = () => {
      showAd(adminConfig.adUnits, onComplete, onError);
   };
 
-  // --- ✅ REAL-TIME UPDATES SUBSCRIPTION ---
+  // --- REAL-TIME UPDATES SUBSCRIPTION ---
   useEffect(() => {
-    // Subscribe to changes in the 'players' table
     const subscription = supabase
       .channel('public:players')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload: any) => {
         
-        // When a player updates, update our local leaderboard list (allPlayers)
         if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
            const newPlayer = payload.new;
+           
+           // 1. Update Leaderboard List
            setAllPlayers(prev => {
-              // Remove the old version of this player
               const filtered = prev.filter(p => p.telegramId !== newPlayer.telegramid);
-              // Add the new version (convert to camelCase)
               const mappedPlayer: any = {
                  telegramId: newPlayer.telegramid,
                  username: newPlayer.username || 'Unknown',
@@ -106,9 +104,22 @@ const App: React.FC = () => {
                  stars: newPlayer.stars,
                  referralCount: newPlayer.referralcount
               };
-              // Sort by balance descending
-              const newList = [...filtered, mappedPlayer].sort((a, b) => b.balance - a.balance);
-              return newList;
+              return [...filtered, mappedPlayer].sort((a, b) => b.balance - a.balance);
+           });
+
+           // 2. IMPORTANT: If the update is for ME (the current user), update my local state instantly!
+           // This ensures if someone joins using my link, I see the stars immediately.
+           setPlayer(prev => {
+                if (prev && prev.telegramId === newPlayer.telegramid) {
+                    return {
+                        ...prev,
+                        referralCount: newPlayer.referralcount,
+                        stars: newPlayer.stars,
+                        // Don't overwrite local balance/energy if we are actively playing to avoid glitches
+                        // But DO sync stars/referrals which come from the server
+                    };
+                }
+                return prev;
            });
         }
       })
@@ -133,7 +144,6 @@ const App: React.FC = () => {
     const userData = tg?.initDataUnsafe?.user;
     const startParam = tg?.initDataUnsafe?.start_param; 
     
-    // Fallback ID for development
     const telegramId = userData?.id?.toString() || (process.env.NODE_ENV === 'development' ? 'dev_user_123' : 'unknown_user');
     const username = userData?.username || userData?.first_name || 'SpaceCadet';
 
@@ -182,12 +192,10 @@ const App: React.FC = () => {
             }
 
             const [userResult, leaderboardData] = await Promise.all([
-                // ✅ QUERY DB: Using lowercase 'telegramid'
                 supabase.from('players').select('*').eq('telegramid', telegramId).maybeSingle(),
                 fetchLeaderboard()
             ]);
 
-            // @ts-ignore
             if (leaderboardData && leaderboardData.length > 0) setAllPlayers(leaderboardData as Player[]);
 
             let loadedPlayer: Player;
@@ -196,17 +204,14 @@ const App: React.FC = () => {
                 // Existing Player Found
                 const remotePlayer = userResult.data;
                 const parsedPlayer: Player = {
-                    // ✅ MAP DB -> APP: 'telegramid' -> 'telegramId'
                     telegramId: remotePlayer.telegramid, 
                     username: remotePlayer.username,
                     balance: Number(remotePlayer.balance), 
                     level: remotePlayer.level,
                     stars: remotePlayer.stars,
-                    referralCount: remotePlayer.referralcount || 0, // ✅ Fix: Lowercase map
+                    referralCount: remotePlayer.referralcount || 0,
                     invitedBy: remotePlayer.invitedBy,
-                    // ✅ MAP DB -> APP: 'gamestate' (lowercase) -> 'gameState'
                     ...remotePlayer.gamestate,
-                    // ✅ FIX: Force use current Telegram photo if available
                     photoUrl: userData?.photo_url || remotePlayer.gamestate?.photoUrl 
                 };
 
@@ -229,15 +234,24 @@ const App: React.FC = () => {
                 loadedPlayer = parsedPlayer;
                 setCanSave(true);
             } else {
-                // New Player
+                // NEW PLAYER: This is where we process the referral!
                 const newPlayer = createNewPlayer();
+                
+                // ✅ REFERRAL LOGIC:
+                // Only process if startParam exists AND it is NOT my own ID
                 if (startParam && startParam !== telegramId) {
+                    console.log(`Processing Referral: ${startParam} invited ${telegramId}`);
+                    // Call the DB function to reward the inviter
                     processReferral(startParam, telegramId, adminConfig.referralRewardStars)
+                        .then(() => console.log("Referral processed successfully"))
                         .catch(err => console.error("Referral Error:", err));
+                    
                     newPlayer.invitedBy = startParam;
                 }
+                
                 loadedPlayer = newPlayer;
                 setCanSave(true);
+                // Initial Save
                 savePlayerToSupabase(newPlayer, upgrades).catch(e => console.error("Initial Save Failed:", e));
             }
             
@@ -245,7 +259,6 @@ const App: React.FC = () => {
 
             // @ts-ignore
             const top50 = leaderboardData as Player[] || [];
-            // Map leaderboard data to use camelCase for comparison
             const indexInTop = top50.findIndex((p: any) => (p.telegramid || p.telegramId) === telegramId);
             setUserRank(indexInTop !== -1 ? indexInTop + 1 : await fetchUserRank(loadedPlayer.balance));
 
@@ -267,22 +280,20 @@ const App: React.FC = () => {
       const fullGameState = { ...gameState, upgrades: currentUpgrades };
 
       try {
-          // ✅ WRITE TO DB: Using lowercase keys to match schema
           const { error } = await supabase.from('players').upsert({
               telegramid: telegramId, 
               username: username,
               balance: balance,
               level: level,
               stars: stars,
-              referralcount: referralCount || 0, // ✅ Fix: Lowercase map
-              gamestate: fullGameState, // ✅ Lowercase 'gamestate'
-              lastupdated: new Date().toISOString() // ✅ Lowercase 'lastupdated'
-          }, { onConflict: 'telegramid' }); // ✅ Lowercase Primary Key
+              referralcount: referralCount || 0,
+              invitedBy: invitedBy || null, 
+              gamestate: fullGameState, 
+              lastupdated: new Date().toISOString() 
+          }, { onConflict: 'telegramid' });
 
           if (error) {
               console.error("❌ Save Failed:", error.message);
-          } else {
-              // console.log("✅ Saved to Supabase");
           }
       } catch (err) {
           console.error("Save Exception:", err);
@@ -314,7 +325,7 @@ const App: React.FC = () => {
     if (nextLevelRequirement !== undefined && player.balance >= nextLevelRequirement && player.levelUpAdsWatched >= requiredAds) {
         const updated = { ...player, level: player.level + 1, levelUpAdsWatched: 0 };
         setPlayer(updated);
-        savePlayerToSupabase(updated, upgrades); // ✅ Force Save on Level Up
+        savePlayerToSupabase(updated, upgrades);
     }
 
     const newTheme = getLevelTheme(player.level);
@@ -422,7 +433,7 @@ const App: React.FC = () => {
     setPendingHoldReward(null);
     setIsClaimModalVisible(false);
     accumulatedHoldRewardRef.current = 0;
-    savePlayerToSupabase(updated, upgrades); // ✅ Force Save
+    savePlayerToSupabase(updated, upgrades);
   };
 
   const handleCancelHoldReward = () => {
@@ -454,7 +465,7 @@ const App: React.FC = () => {
     setPlayer(updatedPlayer);
     setUpgrades(newUpgrades);
     
-    savePlayerToSupabase(updatedPlayer, newUpgrades); // ✅ Force Save
+    savePlayerToSupabase(updatedPlayer, newUpgrades);
   };
 
   const processDealPurchase = (deal: StellarDeal) => {
@@ -493,7 +504,7 @@ const App: React.FC = () => {
     
     if (deal.cooldown) updatedPlayer.lastDealPurchases = { ...updatedPlayer.lastDealPurchases, [deal.id]: Date.now() };
     setPlayer(updatedPlayer);
-    savePlayerToSupabase(updatedPlayer, upgrades); // ✅ Force Save
+    savePlayerToSupabase(updatedPlayer, upgrades);
   };
 
   const handleBuyStellarDeal = (deal: StellarDeal) => {
@@ -528,7 +539,7 @@ const App: React.FC = () => {
     setPlayer(updatedPlayer);
     setView('Earn');
     
-    savePlayerToSupabase(updatedPlayer, upgrades); // ✅ Force Save
+    savePlayerToSupabase(updatedPlayer, upgrades);
   };
   
   const handleSolveCipher = () => {
@@ -537,14 +548,14 @@ const App: React.FC = () => {
     setPlayer(updated);
     triggerBalanceAnimation();
     setView('Earn');
-    savePlayerToSupabase(updated, upgrades); // ✅ Force Save
+    savePlayerToSupabase(updated, upgrades);
   };
 
   const handleActivateBooster = () => {
     if (!player) return;
     const updated = { ...player, currentEnergy: player.maxEnergy, lastBoosterClaimed: Date.now() };
     setPlayer(updated);
-    savePlayerToSupabase(updated, upgrades); // ✅ Force Save
+    savePlayerToSupabase(updated, upgrades);
   };
 
   const handleWatchLevelUpAd = () => {
@@ -566,7 +577,7 @@ const App: React.FC = () => {
             setPlayer(updatedPlayer);
             triggerBalanceAnimation();
             setPendingTasks(prev => prev.filter(id => id !== task.id)); 
-            savePlayerToSupabase(updatedPlayer, upgrades); // ✅ Force Save
+            savePlayerToSupabase(updatedPlayer, upgrades);
         } else {
             setPendingTasks(prev => [...new Set([...prev, task.id])]);
             if (task.link) {
@@ -590,7 +601,7 @@ const App: React.FC = () => {
             }
             return updatedPlayer;
         });
-        if (playerRef.current) savePlayerToSupabase(playerRef.current, upgrades); // ✅ Force Save
+        if (playerRef.current) savePlayerToSupabase(playerRef.current, upgrades);
     }
   };
 
@@ -612,7 +623,7 @@ const App: React.FC = () => {
     triggerBalanceAnimation();
     setPendingTasks(prev => prev.filter(id => id !== taskId));
     
-    savePlayerToSupabase(updatedPlayer, upgrades); // ✅ Force Save
+    savePlayerToSupabase(updatedPlayer, upgrades);
     return true;
   };
   
@@ -630,7 +641,7 @@ const App: React.FC = () => {
     };
     setPlayer(updated);
     setGlobalWithdrawals(prev => [newWithdrawal, ...prev]);
-    savePlayerToSupabase(updated, upgrades); // ✅ Force Save
+    savePlayerToSupabase(updated, upgrades);
   };
 
   if (showIntro) return <IntroScreen isDataReady={!!player} onFinished={() => setShowIntro(false)} />;
