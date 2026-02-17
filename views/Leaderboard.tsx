@@ -4,7 +4,6 @@ import { Player, Theme, LeaderboardViewProps } from '../types';
 const PlayerRow: React.FC<{ player: Player; rank: number; theme: string; isMe?: boolean }> = ({ player, rank, theme, isMe }) => {
     const isTop3 = rank <= 3;
     
-    // Tighter padding (p-3) and margins for mobile
     let rankStyles = "text-slate-500 font-mono text-base";
     let containerStyles = "bg-slate-900/40 border-white/5";
     let glowEffect = "";
@@ -26,6 +25,12 @@ const PlayerRow: React.FC<{ player: Player; rank: number; theme: string; isMe?: 
     if (isMe) {
         containerStyles = `bg-${theme}-900/80 border-${theme}-500/50 shadow-[0_0_15px_rgba(var(--bg-primary),0.3)] sticky bottom-24 z-20 backdrop-blur-xl`;
     }
+
+    // ✅ FIX: Exact number formatting with commas (e.g. 500,000)
+    const formattedBalance = Number(player.balance).toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2 
+    });
 
     return (
         <div className={`relative p-3 rounded-xl flex items-center justify-between transition-all border ${containerStyles} mb-2 last:mb-0`}>
@@ -59,8 +64,9 @@ const PlayerRow: React.FC<{ player: Player; rank: number; theme: string; isMe?: 
             <div className="flex flex-col items-end">
                 <div className="flex items-center gap-1">
                     <span className={`text-${theme}-400 text-[10px]`}>🪐</span>
+                    {/* ✅ FIX: Showing Exact Balance */}
                     <span className={`font-bold text-sm font-mono ${rank === 1 || isMe ? 'text-white' : 'text-slate-300'}`}>
-                        {Number(player.balance).toLocaleString(undefined, { maximumFractionDigits: 0, notation: "compact" })}
+                        {formattedBalance}
                     </span>
                 </div>
                 {player.stars > 0 && (
@@ -95,14 +101,12 @@ const LeaderboardView: React.FC<LeaderboardViewProps> = ({ player, theme, referr
   const displayList = top9;
 
   return (
-    // ✅ REDUCED MARGIN: px-2 instead of px-4. Reduced Top Padding: pt-4.
     <div className="pt-4 px-2 pb-28 flex flex-col gap-5 w-full max-w-md mx-auto">
       
       {/* Compact Referral Card */}
       <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-b from-${theme}-900/40 to-black border border-${theme}-500/20 shadow-lg`}>
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay"></div>
         
-        {/* Reduced padding inside the card (p-5 instead of p-7) */}
         <div className="p-5 relative z-10 flex flex-col gap-4">
             <div className="flex items-center gap-4 border-b border-white/5 pb-4">
                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center text-2xl shadow-lg border border-yellow-400/30`}>
