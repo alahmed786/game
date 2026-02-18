@@ -1,30 +1,31 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export default defineConfig({
   plugins: [react()],
   
-  // ✅ CRITICAL FIX: This tells the app it lives in the "/game/" folder
-  base: '/game/',
+  // ✅ FIX 1: Use './' so it works on any domain or folder (GitHub Pages, Vercel, etc.)
+  base: './',
 
   resolve: {
     alias: {
-      // ✅ RECOMMENDATION: Point '@' to 'src' so imports work correctly
-      '@': path.resolve(__dirname, './src'),
+      // ✅ FIX 2: Point '@' to the CURRENT directory (root), since you don't have a 'src' folder
+      '@': path.resolve(__dirname, './'),
     },
   },
+
   build: {
     outDir: 'dist',
-    sourcemap: false,
-    minify: 'esbuild',
+    sourcemap: true, // Keep true for debugging if needed
   },
+
   server: {
     port: 3000,
-    host: true
+    host: true,
+    fs: {
+      // ✅ FIX 3: Allow serving files from the root directory without security blocking
+      strict: false,
+    }
   }
 });
