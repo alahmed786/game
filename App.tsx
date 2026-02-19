@@ -653,7 +653,7 @@ const App: React.FC = () => {
     savePlayerToSupabase(updated, upgrades);
   };
 
-  if (showIntro) return <IntroScreen isDataReady={!!player} onFinished={() => setShowIntro(false)} />;
+  if (showIntro) return <IntroScreen isDataReady={!!player} onFinished={() => setShowIntro(false)} isDarkMode={isDarkMode} />;
   if (!player) return <div className="flex h-screen items-center justify-center text-cyan-400 font-bold animate-pulse">RE-ESTABLISHING UPLINK...</div>;
   if (player.isBanned) return <div className="fixed inset-0 bg-red-950 flex flex-col items-center justify-center p-6 text-center z-[1000]"><span className="text-6xl mb-4">🚫</span><h1 className="text-3xl font-black text-red-500 uppercase tracking-widest mb-2">ACCESS DENIED</h1></div>;
 
