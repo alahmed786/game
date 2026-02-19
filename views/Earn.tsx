@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { EarnViewProps } from '../types';
 import { BOOSTERS, BOOSTER_CLAIM_COOLDOWN } from '../constants';
@@ -88,7 +87,13 @@ const AdBoosterModal: React.FC<{ onConfirm: () => void; onCancel: () => void; th
   );
 };
 
-const EarnView: React.FC<EarnViewProps> = ({ player, onHoldStart, onHoldEnd, floatingTexts, onDailyRewardClick, onCipherClick, isRewardAvailable, onActivateBooster, pendingHoldReward, isClaimModalVisible, onClaimHoldReward, onCancelHoldReward, currentHoldAmount, isRewardUrgent, isCipherClaimed, theme, onShowAd }) => {
+// Update interface to include theme controls
+interface EarnViewPropsWithTheme extends EarnViewProps {
+  isDarkMode: boolean;
+  toggleTheme: () => void;
+}
+
+const EarnView: React.FC<EarnViewPropsWithTheme> = ({ player, onHoldStart, onHoldEnd, floatingTexts, onDailyRewardClick, onCipherClick, isRewardAvailable, onActivateBooster, pendingHoldReward, isClaimModalVisible, onClaimHoldReward, onCancelHoldReward, currentHoldAmount, isRewardUrgent, isCipherClaimed, theme, onShowAd, isDarkMode, toggleTheme }) => {
   const [boosterCooldownTime, setBoosterCooldownTime] = useState(0);
   const [isActivelyHolding, setIsActivelyHolding] = useState(false);
   const [isAdModalVisible, setIsAdModalVisible] = useState(false);
@@ -257,8 +262,9 @@ const EarnView: React.FC<EarnViewProps> = ({ player, onHoldStart, onHoldEnd, flo
       </div>
       
       {/* Bottom Controls */}
-      <div className="w-full flex items-center justify-between px-8 pb-4 z-[60]">
-          <div className="flex items-center gap-2">
+      <div className="w-full flex items-end justify-between px-8 pb-4 z-[60]">
+          {/* Energy Left */}
+          <div className="flex items-center gap-2 mb-2">
               <span className="text-3xl text-yellow-400 dark:text-yellow-300 drop-shadow-[0_0_8px_rgba(253,224,71,0.6)]">⚡️</span>
               <div className="flex items-baseline gap-1.5">
                   <span className={`font-bold text-xl transition-colors duration-300 ${getEnergyColor()}`}>{Math.floor(player.currentEnergy)}</span>
@@ -266,14 +272,26 @@ const EarnView: React.FC<EarnViewProps> = ({ player, onHoldStart, onHoldEnd, flo
               </div>
           </div>
 
-          <button onClick={handleBoosterClick} disabled={!isBoosterReady} className={`${getBoosterButtonClasses()}`}>
-            <span className="text-2xl mr-2">{booster.icon}</span>
-            {isBoosterReady ? (
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-800 dark:text-white">Boost</span>
-            ) : (
-              <span className="text-xs font-bold font-mono text-slate-400">{formatTime(boosterCooldownTime)}</span>
-            )}
-          </button>
+          {/* Controls Right (Theme & Boost) */}
+          <div className="flex flex-col items-end gap-3">
+             {/* Theme Toggle Button */}
+             <button onClick={toggleTheme} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/40 dark:bg-black/40 border border-white/20 dark:border-white/10 backdrop-blur-md shadow-sm active:scale-95 transition-all">
+                <span className="text-sm">{isDarkMode ? '☀️' : '🌙'}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    {isDarkMode ? 'Light' : 'Dark'}
+                </span>
+             </button>
+
+             {/* Boost Button */}
+             <button onClick={handleBoosterClick} disabled={!isBoosterReady} className={`${getBoosterButtonClasses()}`}>
+                <span className="text-2xl mr-2">{booster.icon}</span>
+                {isBoosterReady ? (
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-800 dark:text-white">Boost</span>
+                ) : (
+                  <span className="text-xs font-bold font-mono text-slate-400">{formatTime(boosterCooldownTime)}</span>
+                )}
+             </button>
+          </div>
       </div>
 
       <style>{`
