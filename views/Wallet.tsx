@@ -145,30 +145,13 @@ const WalletView: React.FC<WalletViewProps> = ({ player, onWithdraw, theme, minW
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         if (timezone === 'Asia/Kolkata' || timezone === 'Asia/Calcutta') {
             setIsIndiaMode(true);
-            setDetectedLocation('India, Karnataka'); // Defaulting to request if timezone matches India
+            setDetectedLocation('India'); // Defaulting to request if timezone matches India
         }
     } catch {
         // Fallback
     }
 
-    // 2. Browser Geolocation (Optional enhancement)
-    // Note: We won't use a reverse geocoding API here to keep it frontend-only and fast,
-    // but requesting permission makes it feel "real".
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                // If we had an API key, we would fetch(https://api.opencagedata.com/...) here.
-                // For now, if we successfully get coordinates and we know it's India timezone,
-                // we confirm the specific location display.
-                console.log("Location acquired:", position.coords);
-            }, 
-            (err) => {
-                console.log("Geolocation permission denied or failed:", err);
-            }
-        );
-    }
-  }, []);
-
+  
   const [address, setAddress] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -422,7 +405,7 @@ const WalletView: React.FC<WalletViewProps> = ({ player, onWithdraw, theme, minW
                     <input 
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        placeholder={isIndiaMode ? "Enter UPI ID (e.g. name@upi)" : "Enter TON Address"}
+                        placeholder={isIndiaMode ? "Enter UPI ID" : "Enter TON Address"}
                         disabled={onCooldown}
                         autoComplete="off"
                         className="w-full bg-transparent border-none text-slate-900 dark:text-white font-mono text-sm py-4 focus:ring-0 placeholder:text-slate-400 dark:placeholder:text-slate-600 tracking-wide outline-none focus:outline-none ring-0 shadow-none"
