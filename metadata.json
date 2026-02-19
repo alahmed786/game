@@ -1,8 +1,5 @@
 {
-  "name": "Alien Overlord: Space Tap",
+  "name": "Alien Lord: Space Tap",
   "description": "A high-fidelity Telegram Mini App in space. Features real-time tapping, daily rewards, a secret cipher mini-game, passive income upgrades, and a global leaderboard.",
-  "requestFramePermissions": [
-    "camera",
-    "geolocation"
-  ]
+  
 }
