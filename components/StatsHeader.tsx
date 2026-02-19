@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Player, Theme } from '../types';
 import { LEVEL_BALANCE_REQUIREMENTS, getRankName } from '../constants';
@@ -9,11 +8,9 @@ interface StatsHeaderProps {
   theme: Theme;
   onOpenAdmin?: () => void;
   showAdminLock?: boolean;
-  isDarkMode?: boolean;
-  toggleTheme?: () => void;
 }
 
-const StatsHeader: React.FC<StatsHeaderProps> = ({ player, animateBalance, theme, onOpenAdmin, showAdminLock, isDarkMode, toggleTheme }) => {
+const StatsHeader: React.FC<StatsHeaderProps> = ({ player, animateBalance, theme, onOpenAdmin, showAdminLock }) => {
   const currentLevel = player.level;
   
   // Logic: Calculate progress relative to the current level's bracket
@@ -38,62 +35,56 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({ player, animateBalance, theme
   return (
     <div className="pt-5 pb-3 px-4 flex flex-col gap-4 bg-transparent z-10 transition-colors duration-500">
       <div className={`relative bg-white/70 dark:bg-black/40 backdrop-blur-xl rounded-2xl border flex flex-col transition-all duration-500 ease-out 
-        ${!isDarkMode ? 'border-white/80 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] -translate-y-1' : 'border-white/10 shadow-xl'}`}>
+        border-white/20 dark:border-white/10 shadow-xl`}>
         
         {/* Top Content (Profile & Currencies) */}
         <div className="px-4 py-3 flex items-center justify-between z-10">
           {/* Profile Section */}
-          <div className="flex items-center gap-3 flex-1">
-            <div className="relative">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="relative flex-shrink-0">
               <img 
                 src={player.photoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${player.username}`} 
                 alt="Profile" 
-                className={`w-10 h-10 rounded-full border-2 border-${theme}-500/30 shadow-md`}
+                className={`w-12 h-12 rounded-full border-2 border-${theme}-500/30 shadow-md`}
               />
-              <div className={`absolute -bottom-1 -right-1 bg-white dark:bg-slate-950 text-${theme}-600 dark:text-${theme}-400 text-[9px] font-bold px-1.5 py-0.5 rounded border border-${theme}-500/30`}>
+              <div className={`absolute -bottom-1 -right-1 bg-white dark:bg-slate-950 text-${theme}-600 dark:text-${theme}-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-${theme}-500/30`}>
                 {player.level}
               </div>
             </div>
             
-            <div className="flex flex-col justify-center">
-               <p className="font-bold text-slate-900 dark:text-white text-base leading-tight flex items-center gap-2">
-                 {player.username}
+            <div className="flex flex-col justify-center min-w-0">
+               <p className="font-bold text-slate-900 dark:text-white text-lg leading-tight flex items-center gap-2 truncate">
+                 <span className="truncate">{player.username}</span>
                  {showAdminLock && (
-                    <button onClick={onOpenAdmin} className="opacity-50 hover:opacity-100 transition-opacity text-slate-500 dark:text-slate-400">
+                    <button onClick={onOpenAdmin} className="opacity-50 hover:opacity-100 transition-opacity text-slate-500 dark:text-slate-400 flex-shrink-0">
                         <span className="text-[10px]">🔒</span>
                     </button>
                  )}
                </p>
-               <p className="text-[10px] text-slate-600 dark:text-slate-400 font-mono tracking-wide mt-0.5 uppercase">
+               <p className="text-[11px] text-slate-600 dark:text-slate-400 font-mono tracking-wide mt-0.5 uppercase truncate">
                   {getRankName(player.level)}
                </p>
             </div>
           </div>
 
-          {/* Currencies & Toggle */}
-          <div className="flex items-center gap-2">
-              {/* Theme Toggle */}
-              {toggleTheme && (
-                  <button onClick={toggleTheme} className="h-9 w-9 flex items-center justify-center rounded-lg bg-white/50 dark:bg-black/60 border border-slate-400/50 dark:border-slate-500/50 shadow-[0_0_12px_rgba(100,116,139,0.3)] backdrop-blur-sm text-lg active:scale-95 transition-all hover:bg-white/80 dark:hover:bg-slate-800">
-                      {isDarkMode ? '☀️' : '🌙'}
-                  </button>
-              )}
-
-              {/* Stars Display */}
-              <div className="h-9 px-3 rounded-lg bg-white/50 dark:bg-black/60 border border-yellow-600/40 dark:border-yellow-500/50 shadow-[0_0_12px_rgba(234,179,8,0.25)] flex items-center justify-center gap-2 backdrop-blur-sm">
-                <span className="text-lg">⭐</span>
-                <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
-                  {player.stars.toLocaleString()}
-                </span>
-              </div>
+          {/* Currencies (Stars & Balance) */}
+          <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+             
+             {/* Stars Display */}
+             <div className="flex items-center gap-1.5 bg-yellow-500/10 dark:bg-yellow-500/20 px-2 py-0.5 rounded-md border border-yellow-500/20">
+               <span className="text-xs">⭐</span>
+               <span className="text-xs font-bold tracking-tight text-slate-900 dark:text-white">
+                 {player.stars.toLocaleString()}
+               </span>
+             </div>
 
              {/* Stardust Display */}
-             <div className={`h-9 px-3 rounded-lg bg-white/50 dark:bg-black/60 border border-${theme}-600/40 dark:border-${theme}-500/50 shadow-[0_0_12px_rgba(6,182,212,0.25)] flex items-center justify-center gap-2 transition-all duration-300 ease-in-out backdrop-blur-sm ${animateBalance ? 'scale-105 border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)]' : ''}`}>
-                <span className="text-lg">🪐</span>
-                <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
+             <div className={`h-10 px-3 rounded-xl bg-white/50 dark:bg-black/60 border border-${theme}-600/40 dark:border-${theme}-500/50 shadow-[0_0_12px_rgba(6,182,212,0.15)] flex items-center justify-center gap-2 transition-all duration-300 ease-in-out backdrop-blur-sm ${animateBalance ? 'scale-105 border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)]' : ''}`}>
+                <span className="text-xl">🪐</span>
+                <span className="text-base font-black tracking-tight text-slate-900 dark:text-white font-mono">
                   {player.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
-              </div>
+             </div>
           </div>
         </div>
 
