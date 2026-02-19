@@ -681,7 +681,9 @@ const App: React.FC = () => {
             isRewardUrgent={isRewardUrgent} 
             isCipherClaimed={player.dailyCipherClaimed} 
             theme={theme} 
-            onShowAd={handleShowAd} 
+            onShowAd={handleShowAd}
+            isDarkMode={isDarkMode}
+            toggleTheme={toggleThemeMode}
         />
       );
       case 'Upgrades': return (
@@ -778,8 +780,6 @@ const App: React.FC = () => {
             theme={theme} 
             onOpenAdmin={handleOpenAdmin} 
             showAdminLock={player.telegramId === ADMIN_ID} 
-            isDarkMode={isDarkMode}
-            toggleTheme={toggleThemeMode}
           />
         )}
         
