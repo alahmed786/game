@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Player, Withdrawal, Theme, WalletViewProps } from '../types';
 import { WITHDRAWAL_COOLDOWN_MS } from '../constants';
@@ -135,8 +134,8 @@ const TransactionCard: React.FC<{ withdrawal: Withdrawal; isIndiaMode: boolean; 
 }
 
 const WalletView: React.FC<WalletViewProps> = ({ player, onWithdraw, theme, minWithdrawal, onShowAd }) => {
-  // Enhanced India detection with geolocation logic placeholder
-  const [detectedLocation, setDetectedLocation] = useState<string>('Global, Earth');
+  // Enhanced India detection
+  const [detectedLocation, setDetectedLocation] = useState<string>('International');
   const [isIndiaMode, setIsIndiaMode] = useState(false);
 
   useEffect(() => {
@@ -145,13 +144,15 @@ const WalletView: React.FC<WalletViewProps> = ({ player, onWithdraw, theme, minW
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         if (timezone === 'Asia/Kolkata' || timezone === 'Asia/Calcutta') {
             setIsIndiaMode(true);
-            setDetectedLocation('India'); // Defaulting to request if timezone matches India
+            setDetectedLocation('India'); 
+        } else {
+            setDetectedLocation('International');
         }
     } catch {
-        // Fallback
+        setDetectedLocation('International');
     }
+  }, []);
 
-  
   const [address, setAddress] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -298,7 +299,7 @@ const WalletView: React.FC<WalletViewProps> = ({ player, onWithdraw, theme, minW
         </div>
 
         {/* Balance Card - FUTURISTIC REDESIGN */}
-        <div className="relative w-full aspect-[1.6] rounded-3xl overflow-hidden group shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-${theme}-500/20 perspective-1000">
+        <div className={`relative w-full aspect-[1.6] rounded-3xl overflow-hidden group shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-${theme}-500/20 perspective-1000`}>
             {/* Dynamic Background */}
             <div className={`absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-${theme}-900 dark:from-slate-950 dark:via-slate-900 dark:to-${theme}-950`}></div>
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
@@ -321,15 +322,15 @@ const WalletView: React.FC<WalletViewProps> = ({ player, onWithdraw, theme, minW
                         <div className="absolute top-[33%] left-0 right-0 h-[1px] bg-black/10"></div>
                         <div className="absolute bottom-[33%] left-0 right-0 h-[1px] bg-black/10"></div>
                     </div>
-                    {/* Signal Icon - STRAIGHT (Uniform Height) */}
+                    {/* Signal Icon */}
                     <div className="flex flex-col gap-1 items-end">
-                         <div className="flex gap-1">
+                          <div className="flex gap-1">
                              <div className="w-1 h-3 bg-white/40 rounded-sm"></div>
                              <div className="w-1 h-3 bg-white/60 rounded-sm"></div>
                              <div className="w-1 h-3 bg-white/80 rounded-sm"></div>
                              <div className="w-1 h-3 bg-white rounded-sm"></div>
-                         </div>
-                         <span className="text-[9px] font-mono text-white/50">{walletContext.network}</span>
+                          </div>
+                          <span className="text-[9px] font-mono text-white/50">{walletContext.network}</span>
                     </div>
                 </div>
 
