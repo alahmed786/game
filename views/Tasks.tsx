@@ -275,6 +275,14 @@ const TasksView: React.FC<TasksViewProps> = ({ player, onInitiateTask, onClaimTa
   const progressPercent = Math.min((adsWatched / reqAds) * 100, 100);
   const remainingAds = Math.max(0, reqAds - adsWatched);
 
+  // ✅ NEW: Filter out tasks that have expired
+  const activeTasks = tasks.filter(t => {
+      // @ts-ignore
+      if (!t.expiresAt) return true; // If no expiration date set, it's always valid
+      // @ts-ignore
+      return new Date(t.expiresAt).getTime() > Date.now(); // Must be in the future
+  });
+
   return (
     <div className="pt-4 flex flex-col gap-6">
       {/* Header */}
@@ -379,15 +387,15 @@ const TasksView: React.FC<TasksViewProps> = ({ player, onInitiateTask, onClaimTa
       <div className="flex flex-col gap-3 pb-24 px-4">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Standard Operations</h3>
         
-        {/* ✅ NEW: "NO TASKS AVAILABLE" EMPTY STATE */}
-        {tasks.length === 0 ? (
+        {/* ✅ Check 'activeTasks' instead of 'tasks' */}
+        {activeTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 mt-2 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl gap-3 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
                 <span className="text-5xl opacity-40 mb-2">📭</span>
                 <span className="text-sm font-black uppercase tracking-widest text-center text-slate-600 dark:text-slate-400">No Tasks Available</span>
                 <span className="text-[11px] font-bold text-center max-w-[200px] text-slate-500 dark:text-slate-500">Check back later for new missions and resource drops.</span>
             </div>
         ) : (
-            tasks.map((task) => (
+            activeTasks.map((task) => (
               <TaskCard
                 key={task.id}
                 task={task}
