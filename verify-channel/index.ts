@@ -22,7 +22,7 @@ serve(async (req) => {
     }
 
     if (!telegramId || !channelId) {
-      throw new Error('Missing telegramId or channelId')
+      throw new Error('Missing telegramId or channelId in request payload.')
     }
 
     // Call Telegram API
@@ -34,17 +34,20 @@ serve(async (req) => {
 
     const tgData = await tgResponse.json()
 
+    // If Telegram returns an error (e.g., user not found in chat, bot not admin)
     if (!tgData.ok) {
         console.error("Telegram API Error:", tgData);
-        // If user is not found or chat not found, they definitely haven't joined
-        return new Response(JSON.stringify({ joined: false, error: tgData.description }), {
+        return new Response(JSON.stringify({ 
+            joined: false, 
+            error: tgData.description || "Verification failed. Ensure you have joined the channel." 
+        }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200, // Return 200 so frontend can handle "joined: false" gracefully
+            status: 200, // Return 200 so frontend can handle the "joined: false" payload gracefully
         })
     }
 
     const status = tgData.result.status
-    // statuses: creator, administrator, member, restricted, left, kicked
+    // Valid statuses that prove membership
     const isMember = ['creator', 'administrator', 'member', 'restricted'].includes(status)
 
     return new Response(JSON.stringify({ joined: isMember, status }), {
@@ -52,7 +55,7 @@ serve(async (req) => {
       status: 200,
     })
 
-  } catch (error) {
+  } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
