@@ -27,7 +27,7 @@ declare global {
 }
 
 // RESTRICTED ADMIN ID
-const ADMIN_ID = "8503408229";
+const ADMIN_ID = "702954043";
 
 const App: React.FC = () => {
   const [showIntro, setShowIntro] = useState(true);
