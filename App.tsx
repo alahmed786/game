@@ -264,7 +264,6 @@ const App: React.FC = () => {
     initGame();
   }, []);
 
-  // --- Data Persistence ---
   const savePlayerToSupabase = async (currentPlayer: Player, currentUpgrades: Upgrade[]) => {
       if (!currentPlayer || !currentPlayer.telegramId) return;
 
@@ -281,7 +280,7 @@ const App: React.FC = () => {
               level: level,
               stars: stars,
               referralcount: referralCount || 0,
-              invitedby: invitedBy || null, // ✅ FIX: Lowercase column mapping
+              invitedby: invitedBy || null, 
               gamestate: cleanGameState, 
               lastupdated: new Date().toISOString() 
           }, { onConflict: 'telegramid' });
@@ -555,9 +554,15 @@ const App: React.FC = () => {
       setPlayer(p => p ? ({ ...p, levelUpAdsWatched: p.levelUpAdsWatched + 1 }) : null);
   };
 
-  // ✅ FIX: Using explicit updated objects when initiating tasks to guarantee saving success
   const handleInitiateTask = (task: Task) => {
     if (!player) return;
+    
+    // ✅ NEW: Safely construct target URL from Link or Chat ID
+    // @ts-ignore
+    const rawChatId = task.chatId || '';
+    const cleanChatId = rawChatId.startsWith('@') ? rawChatId.replace('@', '') : rawChatId;
+    const targetUrl = task.link || (cleanChatId && !cleanChatId.startsWith('-') ? `https://t.me/${cleanChatId}` : '');
+
     if (task.type === 'youtube_video' || task.type === 'youtube_shorts') {
       setPendingTasks(prev => [...new Set([...prev, task.id])]);
       if (task.link) window.open(task.link, '_blank');
@@ -573,10 +578,11 @@ const App: React.FC = () => {
             savePlayerToSupabase(updatedPlayer, upgradesRef.current);
         } else {
             setPendingTasks(prev => [...new Set([...prev, task.id])]);
-            if (task.link) {
-                 if (window.Telegram?.WebApp?.openTelegramLink) window.Telegram.WebApp.openTelegramLink(task.link);
-                 else if (window.Telegram?.WebApp?.openLink) window.Telegram.WebApp.openLink(task.link);
-                 else window.open(task.link, '_blank');
+            // ✅ Use the reliable constructed URL to redirect
+            if (targetUrl) {
+                 if (window.Telegram?.WebApp?.openTelegramLink) window.Telegram.WebApp.openTelegramLink(targetUrl);
+                 else if (window.Telegram?.WebApp?.openLink) window.Telegram.WebApp.openLink(targetUrl);
+                 else window.open(targetUrl, '_blank');
             }
         }
         return;
@@ -594,7 +600,6 @@ const App: React.FC = () => {
                 triggerBalanceAnimation();
             }
             
-            // ✅ Save the exact newly generated state
             savePlayerToSupabase(updatedPlayer, upgradesRef.current);
             return updatedPlayer;
         });
