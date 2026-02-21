@@ -11,6 +11,23 @@ const formatTime = (ms: number): string => {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
 
+// Helper function to format the Expiration Date
+const formatExpiry = (dateString?: string) => {
+    if (!dateString) return null;
+    const expiry = new Date(dateString);
+    const now = new Date();
+    const diffMs = expiry.getTime() - now.getTime();
+    if (diffMs <= 0) return 'Expired';
+    
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+};
+
 const TaskCard: React.FC<{
   task: Task;
   player: Player;
@@ -47,6 +64,9 @@ const TaskCard: React.FC<{
   };
   
   const { completed, progressText } = getTaskStatus(task);
+
+  // @ts-ignore - Get the dynamic text
+  const expiryText = task.expiresAt ? formatExpiry(task.expiresAt as string) : null;
 
   useEffect(() => {
     if (task.type !== 'ads' || !player.lastAdWatched || completed) return;
@@ -151,7 +171,7 @@ const TaskCard: React.FC<{
   `;
 
   const iconClasses = `
-    w-14 h-14 rounded-2xl flex items-center justify-center text-3xl border transition-all duration-300 shadow-inner
+    w-14 h-14 rounded-2xl flex items-center justify-center text-3xl border transition-all duration-300 shadow-inner flex-shrink-0
     ${completed 
       ? 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 grayscale opacity-50' 
       : `bg-white dark:bg-slate-800 border-white/40 dark:border-white/10 shadow-lg group-hover:border-${theme}-500/30`
@@ -169,18 +189,25 @@ const TaskCard: React.FC<{
 
   const defaultView = (
     <>
-      <div className="flex items-center gap-4 z-10 relative">
+      <div className="flex items-center gap-4 z-10 relative pr-2">
         <div className={iconClasses}>
           {task.icon}
         </div>
         <div className="flex flex-col gap-1.5">
           <span className={`font-bold text-sm leading-tight ${completed ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'}`}>{task.title}</span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className={`px-2 py-0.5 rounded text-[10px] font-bold border ${completed ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500' : `bg-${theme}-50 dark:bg-${theme}-950/30 border-${theme}-200 dark:border-${theme}-500/30 text-${theme}-600 dark:text-${theme}-400`}`}>
               +{task.reward.toLocaleString()}
             </div>
             {task.dailyLimit && (
                <span className="text-[10px] text-slate-500 font-bold">{progressText}</span>
+            )}
+            
+            {/* ✅ NEW: VISUAL EXPIRY LABEL */}
+            {expiryText && !completed && (
+               <span className="text-[9px] font-bold text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20 whitespace-nowrap">
+                 ⏳ {expiryText}
+               </span>
             )}
           </div>
         </div>
@@ -275,12 +302,12 @@ const TasksView: React.FC<TasksViewProps> = ({ player, onInitiateTask, onClaimTa
   const progressPercent = Math.min((adsWatched / reqAds) * 100, 100);
   const remainingAds = Math.max(0, reqAds - adsWatched);
 
-  // ✅ NEW: Filter out tasks that have expired
+  // Expiration Checker
   const activeTasks = tasks.filter(t => {
       // @ts-ignore
-      if (!t.expiresAt) return true; // If no expiration date set, it's always valid
+      if (!t.expiresAt) return true; 
       // @ts-ignore
-      return new Date(t.expiresAt).getTime() > Date.now(); // Must be in the future
+      return new Date(t.expiresAt).getTime() > Date.now(); 
   });
 
   return (
@@ -387,7 +414,6 @@ const TasksView: React.FC<TasksViewProps> = ({ player, onInitiateTask, onClaimTa
       <div className="flex flex-col gap-3 pb-24 px-4">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Standard Operations</h3>
         
-        {/* ✅ Check 'activeTasks' instead of 'tasks' */}
         {activeTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 mt-2 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl gap-3 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
                 <span className="text-5xl opacity-40 mb-2">📭</span>
