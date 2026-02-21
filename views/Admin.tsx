@@ -110,6 +110,8 @@ const AdminView: React.FC<AdminViewProps> = ({
       dailyLimit: Number(newTask.dailyLimit) || 1,
       secretCode: newTask.secretCode || '',
       // @ts-ignore
+      chatId: newTask.chatId || '',
+      // @ts-ignore
       expiresAt: newTask.expiresAt || undefined
     };
     setTasks([...tasks, task]);
@@ -118,7 +120,6 @@ const AdminView: React.FC<AdminViewProps> = ({
   
   const deleteTask = (id: string) => setTasks(tasks.filter(t => t.id !== id));
 
-  // ✅ NEW: Auto-Clean Expired and Completed Tasks
   const autoCleanTasks = () => {
       const now = Date.now();
       let removedCount = 0;
@@ -322,8 +323,15 @@ const AdminView: React.FC<AdminViewProps> = ({
                             <option value="ads">Watch Ads</option>
                         </select>
                         <input type="number" placeholder="Reward" value={newTask.reward} onChange={e => setNewTask({...newTask, reward: Number(e.target.value)})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
-                        <input placeholder="Link (Optional)" value={newTask.link || ''} onChange={e => setNewTask({...newTask, link: e.target.value})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
-                        <input placeholder="Secret Code (Optional)" value={newTask.secretCode || ''} onChange={e => setNewTask({...newTask, secretCode: e.target.value})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
+                        <input placeholder="URL Link (https://...)" value={newTask.link || ''} onChange={e => setNewTask({...newTask, link: e.target.value})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
+                        
+                        {/* ✅ NEW: TELEGRAM CHAT ID FIELD */}
+                        {newTask.type === 'telegram' ? (
+                            <input placeholder="Chat ID / @username (e.g. @mychannel)" value={newTask.chatId || ''} onChange={e => setNewTask({...newTask, chatId: e.target.value})} className="bg-black border border-slate-700 p-2 rounded text-xs border-purple-500/50" />
+                        ) : (
+                            <input placeholder="Secret Code (Optional)" value={newTask.secretCode || ''} onChange={e => setNewTask({...newTask, secretCode: e.target.value})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
+                        )}
+
                         <input type="number" placeholder="Limit (e.g. 1)" value={newTask.dailyLimit} onChange={e => setNewTask({...newTask, dailyLimit: Number(e.target.value)})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
                         
                         <div className="col-span-2 flex flex-col gap-1 mt-2 border-t border-slate-800 pt-2">
@@ -338,7 +346,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                     </div>
                     <button onClick={addTask} className="w-full bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-xs font-bold uppercase mt-2">Add Mission</button>
                     
-                    {/* ✅ NEW: Auto-Clean Tasks Button */}
                     <button onClick={autoCleanTasks} className="w-full bg-slate-800 hover:bg-slate-700 py-2 rounded text-xs font-bold uppercase mt-2 border border-slate-600">
                         🧹 Auto-Clean Expired / Completed Tasks
                     </button>
@@ -346,7 +353,6 @@ const AdminView: React.FC<AdminViewProps> = ({
 
                 <div className="grid gap-3">
                     {tasks.map(t => {
-                        // Check if dynamically expired
                         // @ts-ignore
                         const isExpired = t.expiresAt && new Date(t.expiresAt).getTime() < Date.now();
                         
@@ -358,7 +364,8 @@ const AdminView: React.FC<AdminViewProps> = ({
                                         {isExpired && <span className="ml-2 text-[9px] bg-red-900/40 text-red-500 px-1.5 py-0.5 rounded">EXPIRED</span>}
                                     </p>
                                     <p className="text-[10px] text-slate-500">
-                                        {t.type} • Reward: {t.reward} • Code: {t.secretCode || 'None'}
+                                        {/* @ts-ignore */}
+                                        {t.type} • Reward: {t.reward} • {t.type === 'telegram' ? `Target: ${t.chatId || 'Link Only'}` : `Code: ${t.secretCode || 'None'}`}
                                     </p>
                                     {/* @ts-ignore */}
                                     {t.expiresAt && <p className={`text-[9px] mt-1 font-bold ${isExpired ? 'text-red-500' : 'text-slate-400'}`}>Expiry: {new Date(t.expiresAt).toLocaleString()}</p>}
@@ -513,7 +520,7 @@ const AdminView: React.FC<AdminViewProps> = ({
              </div>
         )}
         
-        {/* DEBUG TAB (New) */}
+        {/* DEBUG TAB */}
         {tab === 'debug' && (
              <div className="grid gap-4">
                 <div className="flex justify-between items-center">
