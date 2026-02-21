@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Player, Task, Upgrade, StellarDeal, AdminConfig, Withdrawal, DailyReward, AdminViewProps, AdUnit, ErrorLog } from '../types';
 import { supabase, saveGameSettings, fetchAllPlayersAdmin } from '../utils/supabase';
@@ -153,21 +152,15 @@ const AdminView: React.FC<AdminViewProps> = ({
   };
 
   // --- Finance ---
-  // Note: Updating withdrawal status currently just updates local state in this view.
-  // In a real app, you would need an API or Supabase call to update the specific player's row.
   const handleWithdrawalAction = async (id: string, action: 'Paid' | 'Rejected') => {
-    // 1. Find the player who owns this withdrawal
     const player = players.find(p => p.withdrawalHistory.some(w => w.id === id));
     if (!player) return;
 
-    // 2. Update their history locally
     const updatedHistory = player.withdrawalHistory.map(w => w.id === id ? { ...w, status: action } : w);
     
-    // 3. Update Supabase
     try {
-        await supabase.from('players').update({ withdrawalHistory: updatedHistory }).eq('telegramId', player.telegramId);
+        await supabase.from('players').update({ withdrawalHistory: updatedHistory }).eq('telegramid', player.telegramId); // Fix: use lowercase telegramid for DB
         
-        // 4. Update UI
         setWithdrawals(prev => prev.map(w => w.id === id ? { ...w, status: action } : w));
         setPlayers(prev => prev.map(p => p.telegramId === player.telegramId ? { ...p, withdrawalHistory: updatedHistory } : p));
     } catch(e) {
@@ -183,7 +176,7 @@ const AdminView: React.FC<AdminViewProps> = ({
       const newStatus = !player.isBanned;
 
       try {
-          await supabase.from('players').update({ isBanned: newStatus }).eq('telegramId', id);
+          await supabase.from('players').update({ isBanned: newStatus }).eq('telegramid', id); // Fix: use lowercase telegramid for DB
           setPlayers(prev => prev.map(p => p.telegramId === id ? { ...p, isBanned: newStatus } : p));
       } catch (e) {
           console.error("Ban failed", e);
