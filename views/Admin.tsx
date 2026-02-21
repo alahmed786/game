@@ -95,8 +95,9 @@ const AdminView: React.FC<AdminViewProps> = ({
       });
   };
 
-  // --- Task Management with Expiry ---
+  // --- Task Management with Expiry & Auto-Clean ---
   const [newTask, setNewTask] = useState<Partial<any>>({ type: 'telegram', reward: 1000 });
+  
   const addTask = () => {
     if (!newTask.title) return;
     const task: Task = {
@@ -114,7 +115,49 @@ const AdminView: React.FC<AdminViewProps> = ({
     setTasks([...tasks, task]);
     setNewTask({ type: 'telegram', reward: 1000 });
   };
+  
   const deleteTask = (id: string) => setTasks(tasks.filter(t => t.id !== id));
+
+  // ✅ NEW: Auto-Clean Expired and Completed Tasks
+  const autoCleanTasks = () => {
+      const now = Date.now();
+      let removedCount = 0;
+
+      const activeTasks = tasks.filter(task => {
+          // 1. Check Expiration Date
+          // @ts-ignore
+          if (task.expiresAt && new Date(task.expiresAt).getTime() <= now) {
+              removedCount++;
+              return false; // Remove expired
+          }
+
+          // 2. Check if all existing players have completed it
+          if (players.length > 0) {
+              const limit = task.dailyLimit || 1;
+              const allCompleted = players.every(p => {
+                  const progress = p.taskProgress?.[task.id] || 0;
+                  if (task.type === 'telegram') {
+                      return p.hasFollowedTelegram || progress >= 1;
+                  }
+                  return progress >= limit;
+              });
+
+              if (allCompleted) {
+                  removedCount++;
+                  return false; // Remove fully completed
+              }
+          }
+
+          return true; // Keep task
+      });
+
+      if (removedCount > 0) {
+          setTasks(activeTasks);
+          alert(`🧹 Cleaned up ${removedCount} tasks. Click 'SAVE CHANGES' to update the database.`);
+      } else {
+          alert("✅ All current tasks are still valid and active.");
+      }
+  };
 
   // --- Fleet Management ---
   const [newDeal, setNewDeal] = useState<Partial<StellarDeal>>({ costType: 'stars', rewardType: 'stardust_boost' });
@@ -283,7 +326,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                         <input placeholder="Secret Code (Optional)" value={newTask.secretCode || ''} onChange={e => setNewTask({...newTask, secretCode: e.target.value})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
                         <input type="number" placeholder="Limit (e.g. 1)" value={newTask.dailyLimit} onChange={e => setNewTask({...newTask, dailyLimit: Number(e.target.value)})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
                         
-                        {/* ✅ NEW: Expiration Date Input */}
                         <div className="col-span-2 flex flex-col gap-1 mt-2 border-t border-slate-800 pt-2">
                             <label className="text-[10px] text-slate-500 uppercase font-bold">Expiration Date / Time (Optional)</label>
                             <input 
@@ -295,22 +337,36 @@ const AdminView: React.FC<AdminViewProps> = ({
                         </div>
                     </div>
                     <button onClick={addTask} className="w-full bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-xs font-bold uppercase mt-2">Add Mission</button>
+                    
+                    {/* ✅ NEW: Auto-Clean Tasks Button */}
+                    <button onClick={autoCleanTasks} className="w-full bg-slate-800 hover:bg-slate-700 py-2 rounded text-xs font-bold uppercase mt-2 border border-slate-600">
+                        🧹 Auto-Clean Expired / Completed Tasks
+                    </button>
                 </div>
 
                 <div className="grid gap-3">
-                    {tasks.map(t => (
-                        <div key={t.id} className="bg-slate-900/50 p-4 rounded flex justify-between items-center border border-slate-800">
-                            <div>
-                                <p className="font-bold text-sm">{t.title}</p>
-                                <p className="text-[10px] text-slate-500">
-                                    {t.type} • Reward: {t.reward} • Code: {t.secretCode || 'None'}
-                                </p>
-                                {/* @ts-ignore */}
-                                {t.expiresAt && <p className="text-[9px] text-red-400 mt-1 font-bold">Expires: {new Date(t.expiresAt).toLocaleString()}</p>}
+                    {tasks.map(t => {
+                        // Check if dynamically expired
+                        // @ts-ignore
+                        const isExpired = t.expiresAt && new Date(t.expiresAt).getTime() < Date.now();
+                        
+                        return (
+                            <div key={t.id} className={`bg-slate-900/50 p-4 rounded flex justify-between items-center border ${isExpired ? 'border-red-900/50 opacity-60' : 'border-slate-800'}`}>
+                                <div>
+                                    <p className="font-bold text-sm">
+                                        {t.title} 
+                                        {isExpired && <span className="ml-2 text-[9px] bg-red-900/40 text-red-500 px-1.5 py-0.5 rounded">EXPIRED</span>}
+                                    </p>
+                                    <p className="text-[10px] text-slate-500">
+                                        {t.type} • Reward: {t.reward} • Code: {t.secretCode || 'None'}
+                                    </p>
+                                    {/* @ts-ignore */}
+                                    {t.expiresAt && <p className={`text-[9px] mt-1 font-bold ${isExpired ? 'text-red-500' : 'text-slate-400'}`}>Expiry: {new Date(t.expiresAt).toLocaleString()}</p>}
+                                </div>
+                                <button onClick={() => deleteTask(t.id)} className="text-red-500 hover:text-red-400 text-xs font-bold border border-red-900 px-3 py-1 rounded">DELETE</button>
                             </div>
-                            <button onClick={() => deleteTask(t.id)} className="text-red-500 hover:text-red-400 text-xs font-bold border border-red-900 px-3 py-1 rounded">DELETE</button>
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
             </div>
         )}
