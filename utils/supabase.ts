@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 // Access environment variables safely across different build environments.
@@ -113,16 +112,36 @@ export const fetchGameSettings = async () => {
     return data?.settings || null;
 };
 
+/**
+ * ✅ CRITICAL FIX: Save Game Settings
+ * Scrubs 'undefined' properties which cause Postgres JSONB to fail silently.
+ * Returns a boolean so Admin.tsx knows if it succeeded or failed.
+ */
 export const saveGameSettings = async (settings: any) => {
-    if (url === 'https://placeholder.supabase.co' || isPlaceholder) return;
+    if (url === 'https://placeholder.supabase.co' || isPlaceholder) return false;
 
-    await supabase
-        .from('game_settings')
-        .upsert({
-            id: 'global',
-            settings: settings,
-            lastUpdated: new Date().toISOString()
-        });
+    try {
+        // 1. Sanitize data to pure JSON (removes undefined values that crash Postgres JSONB)
+        const cleanSettings = JSON.parse(JSON.stringify(settings));
+        
+        // 2. Upsert to Supabase
+        const { error } = await supabase
+            .from('game_settings')
+            .upsert({ 
+                id: 'global', 
+                settings: cleanSettings,
+                lastupdated: new Date().toISOString() // Ensure lowercase 'lastupdated'
+            }, { onConflict: 'id' }); 
+        
+        if (error) {
+            console.error("❌ Database Save Error:", error.message);
+            return false;
+        }
+        return true;
+    } catch (err) {
+        console.error("❌ Logic Save Error:", err);
+        return false;
+    }
 };
 
 /**
