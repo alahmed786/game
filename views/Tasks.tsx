@@ -42,6 +42,12 @@ const TaskCard: React.FC<{
   const [isVerifying, setIsVerifying] = useState(false);
   const [expiryTimeLeft, setExpiryTimeLeft] = useState<number>(0);
 
+  // ✅ NEW: Safely construct target URL from Link or Chat ID
+  // @ts-ignore
+  const rawChatId = task.chatId || '';
+  const cleanChatId = rawChatId.startsWith('@') ? rawChatId.replace('@', '') : rawChatId;
+  const targetUrl = task.link || (cleanChatId && !cleanChatId.startsWith('-') ? `https://t.me/${cleanChatId}` : '');
+
   const getTaskStatus = (task: Task) => {
     const currentProgress = player.taskProgress[task.id] || 0;
     
@@ -104,15 +110,11 @@ const TaskCard: React.FC<{
     }
   };
   
-  // ✅ UPDATED: Robust Telegram Verification Logic
   const verifyTelegramMembership = async () => {
     setIsVerifying(true);
     
-    // 1. Prioritize explicit Chat ID provided by Admin
-    // @ts-ignore
-    let targetChannel = task.chatId; 
+    let targetChannel = rawChatId; 
 
-    // 2. Fallback: Try to parse it from the link if Admin didn't provide Chat ID
     if (!targetChannel && task.link && task.link.includes('t.me/')) {
         const parts = task.link.split('t.me/');
         if (parts[1]) {
@@ -140,16 +142,14 @@ const TaskCard: React.FC<{
         if (error) throw error;
 
         if (data && data.joined) {
-             // Verification Passed -> Trigger the reward via App.tsx
              onInitiateTask(task);
         } else {
-             // Verification Failed
              alert(data?.error || "We couldn't verify your membership. Please ensure you have actually joined the channel and try checking again.");
              
-             // Optionally re-open the link for them
-             if (task.link) {
-                 if (window.Telegram?.WebApp?.openTelegramLink) window.Telegram.WebApp.openTelegramLink(task.link);
-                 else window.open(task.link, '_blank');
+             // ✅ Use the reliable constructed URL to redirect
+             if (targetUrl) {
+                 if (window.Telegram?.WebApp?.openTelegramLink) window.Telegram.WebApp.openTelegramLink(targetUrl);
+                 else window.open(targetUrl, '_blank');
              }
         }
     } catch (e) {
@@ -175,10 +175,8 @@ const TaskCard: React.FC<{
           );
       } else if (task.type === 'telegram') {
           if (isPending) {
-              // Click 2: User claims they joined, verify it!
               verifyTelegramMembership();
           } else {
-              // Click 1: User hasn't opened link yet. Open it & mark pending.
               onInitiateTask(task); 
           }
       } else {
@@ -294,7 +292,9 @@ const TaskCard: React.FC<{
         {error ? (
            <span className="text-red-500 dark:text-red-400 text-[10px] font-bold animate-pulse">⚠️ {error}</span>
         ) : <span/>}
-        <a href={task.link} target="_blank" rel="noopener noreferrer" className={`text-${theme}-600 dark:text-${theme}-400 text-[10px] font-bold hover:text-${theme}-500 transition-colors flex items-center gap-1 group`}>
+        
+        {/* ✅ Use Reliable Target URL */}
+        <a href={targetUrl || '#'} target="_blank" rel="noopener noreferrer" className={`text-${theme}-600 dark:text-${theme}-400 text-[10px] font-bold hover:text-${theme}-500 transition-colors flex items-center gap-1 group`}>
            Open Link <span className="group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform">↗</span>
         </a>
       </div>
@@ -338,6 +338,13 @@ const TasksView: React.FC<TasksViewProps> = ({ player, onInitiateTask, onClaimTa
   
   const progressPercent = Math.min((adsWatched / reqAds) * 100, 100);
   const remainingAds = Math.max(0, reqAds - adsWatched);
+
+  const activeTasks = tasks.filter(t => {
+      // @ts-ignore
+      if (!t.expiresAt) return true; 
+      // @ts-ignore
+      return new Date(t.expiresAt).getTime() > Date.now(); 
+  });
 
   return (
     <div className="pt-4 flex flex-col gap-6">
@@ -443,14 +450,14 @@ const TasksView: React.FC<TasksViewProps> = ({ player, onInitiateTask, onClaimTa
       <div className="flex flex-col gap-3 pb-24 px-4">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Standard Operations</h3>
         
-        {tasks.length === 0 ? (
+        {activeTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 mt-2 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl gap-3 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
                 <span className="text-5xl opacity-40 mb-2">📭</span>
                 <span className="text-sm font-black uppercase tracking-widest text-center text-slate-600 dark:text-slate-400">No Tasks Available</span>
                 <span className="text-[11px] font-bold text-center max-w-[200px] text-slate-500 dark:text-slate-500">Check back later for new missions and resource drops.</span>
             </div>
         ) : (
-            tasks.map((task) => (
+            activeTasks.map((task) => (
               <TaskCard
                 key={task.id}
                 task={task}
