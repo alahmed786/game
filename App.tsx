@@ -26,14 +26,12 @@ declare global {
   }
 }
 
-// RESTRICTED ADMIN ID
 const ADMIN_ID = "702954043";
 
 const App: React.FC = () => {
   const [showIntro, setShowIntro] = useState(true);
   const [view, setView] = useState<View>('Earn');
   
-  // --- Global Mutable State ---
   const [adminConfig, setAdminConfig] = useState<AdminConfig>(INITIAL_ADMIN_CONFIG);
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
   const [upgrades, setUpgrades] = useState<Upgrade[]>(INITIAL_UPGRADES);
@@ -55,7 +53,6 @@ const App: React.FC = () => {
   const [pendingTasks, setPendingTasks] = useState<string[]>([]);
   const [animateBalance, setAnimateBalance] = useState(false);
 
-  // Theme & Mode State
   const [theme, setTheme] = useState<Theme>('cyan');
   const [isDarkMode, setIsDarkMode] = useState(true); 
 
@@ -215,7 +212,7 @@ const App: React.FC = () => {
                     level: remotePlayer.level,
                     stars: remotePlayer.stars,
                     referralCount: remotePlayer.referralcount || 0,
-                    invitedBy: remotePlayer.invitedBy,
+                    invitedBy: remotePlayer.invitedby || remotePlayer.invitedBy,
                     ...remotePlayer.gamestate,
                     photoUrl: userData?.photo_url || remotePlayer.gamestate?.photoUrl 
                 };
@@ -271,11 +268,10 @@ const App: React.FC = () => {
   const savePlayerToSupabase = async (currentPlayer: Player, currentUpgrades: Upgrade[]) => {
       if (!currentPlayer || !currentPlayer.telegramId) return;
 
-      const { telegramId, username, balance, level, stars, referralCount, invitedBy, ...gameState } = currentPlayer;
+      const { telegramId, username, balance, level, stars, referralCount, invitedBy, isBanned, ...gameState } = currentPlayer;
       const fullGameState = { ...gameState, upgrades: currentUpgrades };
 
       try {
-          // ✅ CRITICAL FIX: Sanitize gamestate so undefined values don't break Supabase JSONB
           const cleanGameState = JSON.parse(JSON.stringify(fullGameState));
 
           const { error } = await supabase.from('players').upsert({
@@ -285,8 +281,8 @@ const App: React.FC = () => {
               level: level,
               stars: stars,
               referralcount: referralCount || 0,
-              invitedBy: invitedBy || null, 
-              gamestate: cleanGameState, // Used Cleaned State
+              invitedby: invitedBy || null, // ✅ FIX: Lowercase column mapping
+              gamestate: cleanGameState, 
               lastupdated: new Date().toISOString() 
           }, { onConflict: 'telegramid' });
 
@@ -428,7 +424,7 @@ const App: React.FC = () => {
     setPendingHoldReward(null);
     setIsClaimModalVisible(false);
     accumulatedHoldRewardRef.current = 0;
-    savePlayerToSupabase(updated, upgrades);
+    savePlayerToSupabase(updated, upgradesRef.current);
   };
 
   const handleCancelHoldReward = () => {
@@ -499,7 +495,7 @@ const App: React.FC = () => {
     
     if (deal.cooldown) updatedPlayer.lastDealPurchases = { ...updatedPlayer.lastDealPurchases, [deal.id]: Date.now() };
     setPlayer(updatedPlayer);
-    savePlayerToSupabase(updatedPlayer, upgrades);
+    savePlayerToSupabase(updatedPlayer, upgradesRef.current);
   };
 
   const handleBuyStellarDeal = (deal: StellarDeal) => {
@@ -515,6 +511,7 @@ const App: React.FC = () => {
       if(deal.costType === 'ad') { setDealToProcess(deal); setIsDealAdModalVisible(true); }
       else processDealPurchase(deal);
   };
+  
   const handleConfirmDealAd = () => { if(dealToProcess) processDealPurchase(dealToProcess); setIsDealAdModalVisible(false); setDealToProcess(null); };
 
   const handleClaimReward = () => {
@@ -534,7 +531,7 @@ const App: React.FC = () => {
     setPlayer(updatedPlayer);
     setView('Earn');
     
-    savePlayerToSupabase(updatedPlayer, upgrades);
+    savePlayerToSupabase(updatedPlayer, upgradesRef.current);
   };
   
   const handleSolveCipher = () => {
@@ -543,14 +540,14 @@ const App: React.FC = () => {
     setPlayer(updated);
     triggerBalanceAnimation();
     setView('Earn');
-    savePlayerToSupabase(updated, upgrades);
+    savePlayerToSupabase(updated, upgradesRef.current);
   };
 
   const handleActivateBooster = () => {
     if (!player) return;
     const updated = { ...player, currentEnergy: player.maxEnergy, lastBoosterClaimed: Date.now() };
     setPlayer(updated);
-    savePlayerToSupabase(updated, upgrades);
+    savePlayerToSupabase(updated, upgradesRef.current);
   };
 
   const handleWatchLevelUpAd = () => {
@@ -558,6 +555,7 @@ const App: React.FC = () => {
       setPlayer(p => p ? ({ ...p, levelUpAdsWatched: p.levelUpAdsWatched + 1 }) : null);
   };
 
+  // ✅ FIX: Using explicit updated objects when initiating tasks to guarantee saving success
   const handleInitiateTask = (task: Task) => {
     if (!player) return;
     if (task.type === 'youtube_video' || task.type === 'youtube_shorts') {
@@ -572,7 +570,7 @@ const App: React.FC = () => {
             setPlayer(updatedPlayer);
             triggerBalanceAnimation();
             setPendingTasks(prev => prev.filter(id => id !== task.id)); 
-            savePlayerToSupabase(updatedPlayer, upgrades);
+            savePlayerToSupabase(updatedPlayer, upgradesRef.current);
         } else {
             setPendingTasks(prev => [...new Set([...prev, task.id])]);
             if (task.link) {
@@ -590,13 +588,16 @@ const App: React.FC = () => {
             const currentProgress = updatedPlayer.taskProgress[task.id] || 0;
             updatedPlayer.taskProgress = { ...updatedPlayer.taskProgress, [task.id]: currentProgress + 1 };
             updatedPlayer.lastAdWatched = Date.now();
-            if (updatedPlayer.taskProgress[task.id] === task.dailyLimit) {
+            
+            if (updatedPlayer.taskProgress[task.id] >= (task.dailyLimit || 1)) {
                 updatedPlayer.balance += task.reward;
                 triggerBalanceAnimation();
             }
+            
+            // ✅ Save the exact newly generated state
+            savePlayerToSupabase(updatedPlayer, upgradesRef.current);
             return updatedPlayer;
         });
-        if (playerRef.current) savePlayerToSupabase(playerRef.current, upgrades);
     }
   };
 
@@ -618,7 +619,7 @@ const App: React.FC = () => {
     triggerBalanceAnimation();
     setPendingTasks(prev => prev.filter(id => id !== taskId));
     
-    savePlayerToSupabase(updatedPlayer, upgrades);
+    savePlayerToSupabase(updatedPlayer, upgradesRef.current);
     return true;
   };
   
@@ -636,7 +637,7 @@ const App: React.FC = () => {
     };
     setPlayer(updated);
     setGlobalWithdrawals(prev => [newWithdrawal, ...prev]);
-    savePlayerToSupabase(updated, upgrades);
+    savePlayerToSupabase(updated, upgradesRef.current);
   };
 
   if (showIntro) return <IntroScreen isDataReady={!!player} onFinished={() => setShowIntro(false)} isDarkMode={isDarkMode} />;
