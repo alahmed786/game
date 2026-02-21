@@ -26,7 +26,6 @@ const AdminView: React.FC<AdminViewProps> = ({
             // @ts-ignore
             (allPlayersData as Player[]).forEach(p => {
                 if (p.withdrawalHistory && p.withdrawalHistory.length > 0) {
-                     // Ensure telegramId and username are attached if missing in old data
                      const userWds = p.withdrawalHistory.map(w => ({
                          ...w,
                          telegramId: w.telegramId || p.telegramId,
@@ -35,7 +34,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                      allWithdrawals.push(...userWds);
                 }
             });
-            // Sort by latest
             allWithdrawals.sort((a, b) => b.timestamp - a.timestamp);
             setWithdrawals(allWithdrawals);
         }
@@ -59,6 +57,7 @@ const AdminView: React.FC<AdminViewProps> = ({
     }
   }, [tab]);
 
+  // ✅ CRITICAL FIX: Proper error handling for save action
   const handleSaveToBackend = async () => {
       setIsSaving(true);
       setSaveStatus("Uploading...");
@@ -70,18 +69,26 @@ const AdminView: React.FC<AdminViewProps> = ({
               dailyRewards: dailyRewards,
               upgrades: upgrades
           };
-          await saveGameSettings(globalSettings);
-          setSaveStatus("Success!");
-          setTimeout(() => setSaveStatus(null), 2000);
+          
+          // Check if save was genuinely successful
+          const success = await saveGameSettings(globalSettings);
+          
+          if (success) {
+              setSaveStatus("Success!");
+          } else {
+              setSaveStatus("Failed! Check Console.");
+          }
+          
+          setTimeout(() => setSaveStatus(null), 3000);
       } catch (e) {
           console.error(e);
           setSaveStatus("Error!");
+          setTimeout(() => setSaveStatus(null), 3000);
       } finally {
           setIsSaving(false);
       }
   };
 
-  // Helper for input changes
   const handleConfigChange = (key: keyof AdminConfig, value: any) => {
     setConfig(prev => ({ ...prev, [key]: value }));
   };
@@ -159,7 +166,7 @@ const AdminView: React.FC<AdminViewProps> = ({
     const updatedHistory = player.withdrawalHistory.map(w => w.id === id ? { ...w, status: action } : w);
     
     try {
-        await supabase.from('players').update({ withdrawalHistory: updatedHistory }).eq('telegramid', player.telegramId); // Fix: use lowercase telegramid for DB
+        await supabase.from('players').update({ withdrawalHistory: updatedHistory }).eq('telegramid', player.telegramId); 
         
         setWithdrawals(prev => prev.map(w => w.id === id ? { ...w, status: action } : w));
         setPlayers(prev => prev.map(p => p.telegramId === player.telegramId ? { ...p, withdrawalHistory: updatedHistory } : p));
@@ -176,7 +183,7 @@ const AdminView: React.FC<AdminViewProps> = ({
       const newStatus = !player.isBanned;
 
       try {
-          await supabase.from('players').update({ isBanned: newStatus }).eq('telegramid', id); // Fix: use lowercase telegramid for DB
+          await supabase.from('players').update({ isBanned: newStatus }).eq('telegramid', id); 
           setPlayers(prev => prev.map(p => p.telegramId === id ? { ...p, isBanned: newStatus } : p));
       } catch (e) {
           console.error("Ban failed", e);
@@ -197,7 +204,7 @@ const AdminView: React.FC<AdminViewProps> = ({
             <button 
                 onClick={handleSaveToBackend} 
                 disabled={isSaving}
-                className={`px-4 py-2 rounded text-xs font-bold uppercase transition-all ${saveStatus === 'Success!' ? 'bg-green-600 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}
+                className={`px-4 py-2 rounded text-xs font-bold uppercase transition-all ${saveStatus === 'Success!' ? 'bg-green-600 text-white' : saveStatus === 'Failed! Check Console.' ? 'bg-red-600 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}
             >
                 {isSaving ? 'Saving...' : saveStatus || 'SAVE CHANGES'}
             </button>
