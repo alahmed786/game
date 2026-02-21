@@ -4,7 +4,6 @@ import { AD_COOLDOWN, LEVEL_BALANCE_REQUIREMENTS, calculateLevelUpAdsReq } from 
 import { TasksViewProps } from '../types';
 import { supabase } from '../utils/supabase';
 
-// Formats the Ad Cooldown Time
 const formatTime = (ms: number): string => {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -12,7 +11,6 @@ const formatTime = (ms: number): string => {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
 
-// ✅ UPDATED: Formats the Expiration Time to include Seconds
 const formatExpiry = (diffMs: number) => {
     if (diffMs <= 0) return 'Expired';
     
@@ -42,8 +40,6 @@ const TaskCard: React.FC<{
   const [adCooldownTime, setAdCooldownTime] = useState(0);
   const [isAdLoading, setIsAdLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  
-  // ✅ NEW: Live Countdown State for Expiry
   const [expiryTimeLeft, setExpiryTimeLeft] = useState<number>(0);
 
   const getTaskStatus = (task: Task) => {
@@ -54,9 +50,7 @@ const TaskCard: React.FC<{
         const isTelegramDone = player.hasFollowedTelegram || currentProgress > 0;
         return { completed: isTelegramDone, progressText: '1/1' };
       case 'youtube_video':
-        return { completed: currentProgress >= (task.dailyLimit || 1), progressText: `${currentProgress}/${task.dailyLimit || 1}` };
       case 'youtube_shorts':
-        return { completed: currentProgress >= (task.dailyLimit || 1), progressText: `${currentProgress}/${task.dailyLimit || 1}` };
       case 'ads':
         const isComplete = currentProgress >= (task.dailyLimit || 1);
         return { completed: isComplete, progressText: `${currentProgress}/${task.dailyLimit || 1}` };
@@ -67,7 +61,6 @@ const TaskCard: React.FC<{
   
   const { completed, progressText } = getTaskStatus(task);
 
-  // ✅ NEW: Live Countdown Effect
   useEffect(() => {
       // @ts-ignore
       if (!task.expiresAt || completed) return;
@@ -78,12 +71,12 @@ const TaskCard: React.FC<{
           setExpiryTimeLeft(diff > 0 ? diff : 0);
       };
 
-      updateExpiry(); // Initial call
+      updateExpiry(); 
       const interval = setInterval(updateExpiry, 1000);
       return () => clearInterval(interval);
   }, [task.expiresAt, completed]);
 
-  // @ts-ignore - Dynamically update the text every second
+  // @ts-ignore
   const isExpired = task.expiresAt && expiryTimeLeft <= 0;
   // @ts-ignore
   const expiryText = task.expiresAt ? formatExpiry(expiryTimeLeft) : null;
@@ -111,28 +104,49 @@ const TaskCard: React.FC<{
     }
   };
   
+  // ✅ UPDATED: Robust Telegram Verification Logic
   const verifyTelegramMembership = async () => {
     setIsVerifying(true);
-    let channelId = '@AlienLords_Channel';
-    if (task.link && task.link.includes('t.me/')) {
+    
+    // 1. Prioritize explicit Chat ID provided by Admin
+    // @ts-ignore
+    let targetChannel = task.chatId; 
+
+    // 2. Fallback: Try to parse it from the link if Admin didn't provide Chat ID
+    if (!targetChannel && task.link && task.link.includes('t.me/')) {
         const parts = task.link.split('t.me/');
-        if (parts[1]) channelId = '@' + parts[1].replace('/', '');
+        if (parts[1]) {
+            const name = parts[1].replace('/', '').split('?')[0];
+            if (!name.startsWith('+')) {
+                targetChannel = '@' + name;
+            }
+        }
+    }
+
+    if (!targetChannel) {
+         alert("Configuration Error: The Admin has not provided a valid target Chat ID or Username for this task.");
+         setIsVerifying(false);
+         return;
     }
 
     try {
         const { data, error } = await supabase.functions.invoke('verify-channel', {
             body: { 
                 telegramId: player.telegramId,
-                channelId: channelId 
+                channelId: targetChannel 
             }
         });
 
         if (error) throw error;
 
         if (data && data.joined) {
+             // Verification Passed -> Trigger the reward via App.tsx
              onInitiateTask(task);
         } else {
-             alert(data?.error || "Verification failed. Please ensure you have joined the channel.");
+             // Verification Failed
+             alert(data?.error || "We couldn't verify your membership. Please ensure you have actually joined the channel and try checking again.");
+             
+             // Optionally re-open the link for them
              if (task.link) {
                  if (window.Telegram?.WebApp?.openTelegramLink) window.Telegram.WebApp.openTelegramLink(task.link);
                  else window.open(task.link, '_blank');
@@ -161,8 +175,10 @@ const TaskCard: React.FC<{
           );
       } else if (task.type === 'telegram') {
           if (isPending) {
+              // Click 2: User claims they joined, verify it!
               verifyTelegramMembership();
           } else {
+              // Click 1: User hasn't opened link yet. Open it & mark pending.
               onInitiateTask(task); 
           }
       } else {
@@ -211,12 +227,12 @@ const TaskCard: React.FC<{
 
   const defaultView = (
     <>
-      <div className="flex items-center gap-4 z-10 relative pr-2">
+      <div className="flex items-center gap-4 z-10 relative pr-2 w-full">
         <div className={iconClasses}>
           {task.icon}
         </div>
-        <div className="flex flex-col gap-1.5">
-          <span className={`font-bold text-sm leading-tight ${completed || isExpired ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-white'}`}>{task.title}</span>
+        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+          <span className={`font-bold text-sm leading-tight truncate ${completed || isExpired ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-white'}`}>{task.title}</span>
           <div className="flex items-center gap-2 flex-wrap">
             <div className={`px-2 py-0.5 rounded text-[10px] font-bold border ${completed || isExpired ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500' : `bg-${theme}-50 dark:bg-${theme}-950/30 border-${theme}-200 dark:border-${theme}-500/30 text-${theme}-600 dark:text-${theme}-400`}`}>
               +{task.reward.toLocaleString()}
@@ -225,7 +241,6 @@ const TaskCard: React.FC<{
                <span className="text-[10px] text-slate-500 font-bold">{progressText}</span>
             )}
             
-            {/* Live Expiry Countdown */}
             {expiryText && !completed && (
                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${isExpired ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-orange-500/10 text-orange-500 border-orange-500/20'}`}>
                  {isExpired ? '❌ Expired' : `⏳ ${expiryText}`}
@@ -323,11 +338,6 @@ const TasksView: React.FC<TasksViewProps> = ({ player, onInitiateTask, onClaimTa
   
   const progressPercent = Math.min((adsWatched / reqAds) * 100, 100);
   const remainingAds = Math.max(0, reqAds - adsWatched);
-
-  // We show ALL tasks here. The TaskCard will internally handle showing the "EXPIRED" state
-  // This allows players to see they missed a task instead of it silently disappearing,
-  // until the Admin uses the "Auto-Clean" button to remove it permanently from the DB.
-  const activeTasks = tasks;
 
   return (
     <div className="pt-4 flex flex-col gap-6">
@@ -433,14 +443,14 @@ const TasksView: React.FC<TasksViewProps> = ({ player, onInitiateTask, onClaimTa
       <div className="flex flex-col gap-3 pb-24 px-4">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Standard Operations</h3>
         
-        {activeTasks.length === 0 ? (
+        {tasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 mt-2 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl gap-3 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
                 <span className="text-5xl opacity-40 mb-2">📭</span>
                 <span className="text-sm font-black uppercase tracking-widest text-center text-slate-600 dark:text-slate-400">No Tasks Available</span>
                 <span className="text-[11px] font-bold text-center max-w-[200px] text-slate-500 dark:text-slate-500">Check back later for new missions and resource drops.</span>
             </div>
         ) : (
-            activeTasks.map((task) => (
+            tasks.map((task) => (
               <TaskCard
                 key={task.id}
                 task={task}
