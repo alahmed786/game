@@ -27,7 +27,7 @@ declare global {
 }
 
 // RESTRICTED ADMIN ID
-const ADMIN_ID = "702954043";
+const ADMIN_ID = "8503408229";
 
 const App: React.FC = () => {
   const [showIntro, setShowIntro] = useState(true);
@@ -57,20 +57,17 @@ const App: React.FC = () => {
 
   // Theme & Mode State
   const [theme, setTheme] = useState<Theme>('cyan');
-  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark
+  const [isDarkMode, setIsDarkMode] = useState(true); 
 
-  // State for Stellar Market
   const [dealToProcess, setDealToProcess] = useState<StellarDeal | null>(null);
   const [isDealAdModalVisible, setIsDealAdModalVisible] = useState(false);
 
-  // Critical for Data Integrity
   const [canSave, setCanSave] = useState(false);
 
   const passiveUpdateRef = useRef<number>(0);
   const lastPassiveTimeRef = useRef<number | undefined>(undefined);
   const holdIntervalRef = useRef<number | null>(null);
 
-  // Refs for auto-saving
   const playerRef = useRef<Player | null>(null);
   const upgradesRef = useRef<Upgrade[]>(INITIAL_UPGRADES);
 
@@ -79,7 +76,6 @@ const App: React.FC = () => {
     upgradesRef.current = upgrades;
   }, [player, upgrades]);
 
-  // --- Theme Toggle Logic ---
   const toggleThemeMode = () => {
     setIsDarkMode(prev => {
         const newMode = !prev;
@@ -89,21 +85,17 @@ const App: React.FC = () => {
     });
   };
 
-  // --- Central Ad Handler ---
   const handleShowAd = (onComplete: () => void, onError: (msg: string) => void) => {
      showAd(adminConfig.adUnits, onComplete, onError);
   };
 
-  // --- REAL-TIME UPDATES SUBSCRIPTION ---
   useEffect(() => {
     const subscription = supabase
       .channel('public:players')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload: any) => {
-        
         if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
            const newPlayer = payload.new;
            
-           // 1. Update Leaderboard List
            setAllPlayers(prev => {
               const filtered = prev.filter(p => p.telegramId !== newPlayer.telegramid);
               const mappedPlayer: any = {
@@ -118,7 +110,6 @@ const App: React.FC = () => {
               return [...filtered, mappedPlayer].sort((a, b) => b.balance - a.balance);
            });
 
-           // 2. IMPORTANT: If the update is for ME (the current user), update my local state instantly!
            setPlayer(prev => {
                 if (prev && prev.telegramId === newPlayer.telegramid) {
                     return {
@@ -138,18 +129,15 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // --- Initialization & Backend Sync ---
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
     if (tg) {
       const app = tg as any;
       app.ready();
       app.expand();
-      // Set Header Color based on theme mode
       app.setHeaderColor(isDarkMode ? '#030712' : '#f0f9ff'); 
       app.enableClosingConfirmation();
       
-      // Auto-detect theme from Telegram
       if (app.colorScheme === 'light') {
           setIsDarkMode(false);
           document.documentElement.classList.remove('dark');
@@ -219,7 +207,6 @@ const App: React.FC = () => {
             let loadedPlayer: Player;
 
             if (userResult.data) {
-                // Existing Player Found
                 const remotePlayer = userResult.data;
                 const parsedPlayer: Player = {
                     telegramId: remotePlayer.telegramid, 
@@ -252,7 +239,6 @@ const App: React.FC = () => {
                 loadedPlayer = parsedPlayer;
                 setCanSave(true);
             } else {
-                // NEW PLAYER
                 const newPlayer = createNewPlayer();
                 if (startParam && startParam !== telegramId) {
                     processReferral(startParam, telegramId, adminConfig.referralRewardStars)
@@ -289,6 +275,9 @@ const App: React.FC = () => {
       const fullGameState = { ...gameState, upgrades: currentUpgrades };
 
       try {
+          // ✅ CRITICAL FIX: Sanitize gamestate so undefined values don't break Supabase JSONB
+          const cleanGameState = JSON.parse(JSON.stringify(fullGameState));
+
           const { error } = await supabase.from('players').upsert({
               telegramid: telegramId, 
               username: username,
@@ -297,7 +286,7 @@ const App: React.FC = () => {
               stars: stars,
               referralcount: referralCount || 0,
               invitedBy: invitedBy || null, 
-              gamestate: fullGameState, 
+              gamestate: cleanGameState, // Used Cleaned State
               lastupdated: new Date().toISOString() 
           }, { onConflict: 'telegramid' });
 
@@ -309,7 +298,6 @@ const App: React.FC = () => {
       }
   };
 
-  // Auto-save every 5s
   useEffect(() => {
       if (!canSave) return;
       const saveInterval = setInterval(() => {
@@ -324,7 +312,6 @@ const App: React.FC = () => {
     setTimeout(() => setAnimateBalance(false), 500); 
   };
 
-  // Leveling & Theme
   useEffect(() => {
     if (!player) return;
     const currentLevel = player.level;
@@ -347,7 +334,6 @@ const App: React.FC = () => {
     }
   }, [player?.balance, player?.level, player?.levelUpAdsWatched]);
   
-  // Reward urgency timer
   useEffect(() => {
     const checkUrgency = () => {
       if (player?.lastRewardClaimed) {
@@ -772,7 +758,6 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-[100dvh] overflow-hidden">
       <div className='flex flex-col h-full'>
-        {/* Header - Only show on main views */}
         {view !== 'DailyReward' && view !== 'DailyCipher' && view !== 'Admin' && (
           <StatsHeader 
             player={player} 
@@ -783,12 +768,10 @@ const App: React.FC = () => {
           />
         )}
         
-        {/* Main Content Area */}
         <div className={`flex-1 overflow-y-auto ${view !== 'DailyReward' && view !== 'DailyCipher' && view !== 'Admin' ? 'pb-24' : ''}`}>
           {renderView()}
         </div>
 
-        {/* Navigation Bar - Only show on main views */}
         {view !== 'DailyReward' && view !== 'DailyCipher' && view !== 'Admin' && (
           <Navigation currentView={view} onViewChange={setView} theme={theme} />
         )}
