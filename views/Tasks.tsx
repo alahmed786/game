@@ -4,28 +4,27 @@ import { AD_COOLDOWN, LEVEL_BALANCE_REQUIREMENTS, calculateLevelUpAdsReq } from 
 import { TasksViewProps } from '../types';
 import { supabase } from '../utils/supabase';
 
+// Formats the Ad Cooldown Time
 const formatTime = (ms: number): string => {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
 
-// Helper function to format the Expiration Date
-const formatExpiry = (dateString?: string) => {
-    if (!dateString) return null;
-    const expiry = new Date(dateString);
-    const now = new Date();
-    const diffMs = expiry.getTime() - now.getTime();
+// ✅ UPDATED: Formats the Expiration Time to include Seconds
+const formatExpiry = (diffMs: number) => {
     if (diffMs <= 0) return 'Expired';
     
     const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
     
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
+    if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
 };
 
 const TaskCard: React.FC<{
@@ -43,6 +42,9 @@ const TaskCard: React.FC<{
   const [adCooldownTime, setAdCooldownTime] = useState(0);
   const [isAdLoading, setIsAdLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  
+  // ✅ NEW: Live Countdown State for Expiry
+  const [expiryTimeLeft, setExpiryTimeLeft] = useState<number>(0);
 
   const getTaskStatus = (task: Task) => {
     const currentProgress = player.taskProgress[task.id] || 0;
@@ -65,8 +67,26 @@ const TaskCard: React.FC<{
   
   const { completed, progressText } = getTaskStatus(task);
 
-  // @ts-ignore - Get the dynamic text
-  const expiryText = task.expiresAt ? formatExpiry(task.expiresAt as string) : null;
+  // ✅ NEW: Live Countdown Effect
+  useEffect(() => {
+      // @ts-ignore
+      if (!task.expiresAt || completed) return;
+
+      const updateExpiry = () => {
+          // @ts-ignore
+          const diff = new Date(task.expiresAt).getTime() - Date.now();
+          setExpiryTimeLeft(diff > 0 ? diff : 0);
+      };
+
+      updateExpiry(); // Initial call
+      const interval = setInterval(updateExpiry, 1000);
+      return () => clearInterval(interval);
+  }, [task.expiresAt, completed]);
+
+  // @ts-ignore - Dynamically update the text every second
+  const isExpired = task.expiresAt && expiryTimeLeft <= 0;
+  // @ts-ignore
+  const expiryText = task.expiresAt ? formatExpiry(expiryTimeLeft) : null;
 
   useEffect(() => {
     if (task.type !== 'ads' || !player.lastAdWatched || completed) return;
@@ -151,18 +171,20 @@ const TaskCard: React.FC<{
   };
   
   let buttonText = completed ? 'DONE' : 'GO';
-  if (task.type === 'ads' && !completed) {
-    buttonText = 'WATCH';
+  if (isExpired && !completed) {
+      buttonText = 'EXPIRED';
+  } else if (task.type === 'ads' && !completed) {
+      buttonText = 'WATCH';
   } else if (task.type === 'telegram' && !completed) {
       buttonText = isPending ? 'CHECK' : 'JOIN';
   }
   
   const isAdOnCooldown = task.type === 'ads' && adCooldownTime > 0;
-  const isDisabled = completed || isAdOnCooldown || isAdLoading || isVerifying;
+  const isDisabled = completed || isAdOnCooldown || isAdLoading || isVerifying || isExpired;
   
   const buttonClasses = `
     min-w-[5.5rem] h-10 px-4 rounded-lg font-black text-xs uppercase tracking-widest flex items-center justify-center transition-all duration-200 relative overflow-hidden group shadow-lg
-    ${completed 
+    ${completed || isExpired
        ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border border-slate-300 dark:border-slate-700 cursor-not-allowed' 
        : isAdOnCooldown || isAdLoading || isVerifying
          ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 border border-yellow-500/50 cursor-wait'
@@ -172,7 +194,7 @@ const TaskCard: React.FC<{
 
   const iconClasses = `
     w-14 h-14 rounded-2xl flex items-center justify-center text-3xl border transition-all duration-300 shadow-inner flex-shrink-0
-    ${completed 
+    ${completed || isExpired
       ? 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 grayscale opacity-50' 
       : `bg-white dark:bg-slate-800 border-white/40 dark:border-white/10 shadow-lg group-hover:border-${theme}-500/30`
     }
@@ -180,11 +202,11 @@ const TaskCard: React.FC<{
 
   const containerClasses = `
     relative p-4 rounded-2xl border transition-all duration-300 bg-white/40 dark:bg-slate-900/60 backdrop-blur-xl shadow-lg
-    ${completed 
+    ${completed || isExpired
       ? 'border-slate-200 dark:border-slate-800 opacity-70' 
       : `border-white/40 dark:border-white/10 hover:border-${theme}-500/30`
     }
-    ${isPending && !completed ? `ring-1 ring-${theme}-500/50 bg-white/60 dark:bg-slate-900` : ''}
+    ${isPending && !completed && !isExpired ? `ring-1 ring-${theme}-500/50 bg-white/60 dark:bg-slate-900` : ''}
   `;
 
   const defaultView = (
@@ -194,19 +216,19 @@ const TaskCard: React.FC<{
           {task.icon}
         </div>
         <div className="flex flex-col gap-1.5">
-          <span className={`font-bold text-sm leading-tight ${completed ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'}`}>{task.title}</span>
+          <span className={`font-bold text-sm leading-tight ${completed || isExpired ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-white'}`}>{task.title}</span>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className={`px-2 py-0.5 rounded text-[10px] font-bold border ${completed ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500' : `bg-${theme}-50 dark:bg-${theme}-950/30 border-${theme}-200 dark:border-${theme}-500/30 text-${theme}-600 dark:text-${theme}-400`}`}>
+            <div className={`px-2 py-0.5 rounded text-[10px] font-bold border ${completed || isExpired ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500' : `bg-${theme}-50 dark:bg-${theme}-950/30 border-${theme}-200 dark:border-${theme}-500/30 text-${theme}-600 dark:text-${theme}-400`}`}>
               +{task.reward.toLocaleString()}
             </div>
             {task.dailyLimit && (
                <span className="text-[10px] text-slate-500 font-bold">{progressText}</span>
             )}
             
-            {/* ✅ NEW: VISUAL EXPIRY LABEL */}
+            {/* Live Expiry Countdown */}
             {expiryText && !completed && (
-               <span className="text-[9px] font-bold text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20 whitespace-nowrap">
-                 ⏳ {expiryText}
+               <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${isExpired ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-orange-500/10 text-orange-500 border-orange-500/20'}`}>
+                 {isExpired ? '❌ Expired' : `⏳ ${expiryText}`}
                </span>
             )}
           </div>
@@ -266,8 +288,8 @@ const TaskCard: React.FC<{
 
   return (
     <div className={`${containerClasses} flex items-center justify-between group`}>
-      {!completed && !isPending && <div className={`absolute inset-0 bg-gradient-to-r from-${theme}-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none`}></div>}
-      {isPending && !completed && task.type !== 'telegram' ? secretCodeView : defaultView}
+      {!completed && !isPending && !isExpired && <div className={`absolute inset-0 bg-gradient-to-r from-${theme}-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none`}></div>}
+      {isPending && !completed && !isExpired && task.type !== 'telegram' ? secretCodeView : defaultView}
     </div>
   );
 };
@@ -302,13 +324,10 @@ const TasksView: React.FC<TasksViewProps> = ({ player, onInitiateTask, onClaimTa
   const progressPercent = Math.min((adsWatched / reqAds) * 100, 100);
   const remainingAds = Math.max(0, reqAds - adsWatched);
 
-  // Expiration Checker
-  const activeTasks = tasks.filter(t => {
-      // @ts-ignore
-      if (!t.expiresAt) return true; 
-      // @ts-ignore
-      return new Date(t.expiresAt).getTime() > Date.now(); 
-  });
+  // We show ALL tasks here. The TaskCard will internally handle showing the "EXPIRED" state
+  // This allows players to see they missed a task instead of it silently disappearing,
+  // until the Admin uses the "Auto-Clean" button to remove it permanently from the DB.
+  const activeTasks = tasks;
 
   return (
     <div className="pt-4 flex flex-col gap-6">
