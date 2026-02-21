@@ -13,7 +13,6 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
-  // Load Real Data on Mount
   useEffect(() => {
     const refreshData = async () => {
         const allPlayersData = await fetchAllPlayersAdmin();
@@ -21,7 +20,6 @@ const AdminView: React.FC<AdminViewProps> = ({
             // @ts-ignore
             setPlayers(allPlayersData as Player[]);
             
-            // Aggregate all withdrawals from all players
             const allWithdrawals: Withdrawal[] = [];
             // @ts-ignore
             (allPlayersData as Player[]).forEach(p => {
@@ -41,7 +39,6 @@ const AdminView: React.FC<AdminViewProps> = ({
     refreshData();
   }, []);
 
-  // Fetch Logs when switching to Debug tab
   useEffect(() => {
     if (tab === 'debug') {
         const fetchLogs = async () => {
@@ -57,7 +54,6 @@ const AdminView: React.FC<AdminViewProps> = ({
     }
   }, [tab]);
 
-  // ✅ CRITICAL FIX: Proper error handling for save action
   const handleSaveToBackend = async () => {
       setIsSaving(true);
       setSaveStatus("Uploading...");
@@ -69,8 +65,6 @@ const AdminView: React.FC<AdminViewProps> = ({
               dailyRewards: dailyRewards,
               upgrades: upgrades
           };
-          
-          // Check if save was genuinely successful
           const success = await saveGameSettings(globalSettings);
           
           if (success) {
@@ -101,8 +95,8 @@ const AdminView: React.FC<AdminViewProps> = ({
       });
   };
 
-  // --- Task Management ---
-  const [newTask, setNewTask] = useState<Partial<Task>>({ type: 'telegram', reward: 1000 });
+  // --- Task Management with Expiry ---
+  const [newTask, setNewTask] = useState<Partial<any>>({ type: 'telegram', reward: 1000 });
   const addTask = () => {
     if (!newTask.title) return;
     const task: Task = {
@@ -113,7 +107,9 @@ const AdminView: React.FC<AdminViewProps> = ({
       icon: newTask.type === 'telegram' ? '✈️' : newTask.type === 'ads' ? '🎟️' : '📺',
       link: newTask.link || '',
       dailyLimit: Number(newTask.dailyLimit) || 1,
-      secretCode: newTask.secretCode || ''
+      secretCode: newTask.secretCode || '',
+      // @ts-ignore
+      expiresAt: newTask.expiresAt || undefined
     };
     setTasks([...tasks, task]);
     setNewTask({ type: 'telegram', reward: 1000 });
@@ -234,48 +230,23 @@ const AdminView: React.FC<AdminViewProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] text-slate-500 uppercase font-bold">Daily Cipher Word</label>
-                            <input 
-                                type="text" 
-                                value={config.dailyCipherWord} 
-                                onChange={(e) => handleConfigChange('dailyCipherWord', e.target.value.toUpperCase())}
-                                className="bg-black border border-slate-700 p-2 rounded text-emerald-400 font-bold tracking-widest"
-                            />
+                            <input type="text" value={config.dailyCipherWord} onChange={(e) => handleConfigChange('dailyCipherWord', e.target.value.toUpperCase())} className="bg-black border border-slate-700 p-2 rounded text-emerald-400 font-bold tracking-widest" />
                         </div>
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] text-slate-500 uppercase font-bold">Cipher Reward Amount</label>
-                            <input 
-                                type="number" 
-                                value={config.dailyCipherReward} 
-                                onChange={(e) => handleConfigChange('dailyCipherReward', Number(e.target.value))}
-                                className="bg-black border border-slate-700 p-2 rounded text-emerald-400 font-bold"
-                            />
+                            <input type="number" value={config.dailyCipherReward} onChange={(e) => handleConfigChange('dailyCipherReward', Number(e.target.value))} className="bg-black border border-slate-700 p-2 rounded text-emerald-400 font-bold" />
                         </div>
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] text-slate-500 uppercase font-bold">Min Withdrawal (TON)</label>
-                            <input 
-                                type="number" 
-                                value={config.minWithdrawalTon} 
-                                onChange={(e) => handleConfigChange('minWithdrawalTon', Number(e.target.value))}
-                                className="bg-black border border-slate-700 p-2 rounded text-cyan-400 font-bold"
-                            />
+                            <input type="number" value={config.minWithdrawalTon} onChange={(e) => handleConfigChange('minWithdrawalTon', Number(e.target.value))} className="bg-black border border-slate-700 p-2 rounded text-cyan-400 font-bold" />
                         </div>
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] text-slate-500 uppercase font-bold">Referral Reward (Stars)</label>
-                            <input 
-                                type="number" 
-                                value={config.referralRewardStars} 
-                                onChange={(e) => handleConfigChange('referralRewardStars', Number(e.target.value))}
-                                className="bg-black border border-slate-700 p-2 rounded text-yellow-400 font-bold"
-                            />
+                            <input type="number" value={config.referralRewardStars} onChange={(e) => handleConfigChange('referralRewardStars', Number(e.target.value))} className="bg-black border border-slate-700 p-2 rounded text-yellow-400 font-bold" />
                         </div>
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] text-slate-500 uppercase font-bold">Daily Reward Multiplier</label>
-                            <input 
-                                type="number" 
-                                value={config.dailyRewardBase} 
-                                onChange={(e) => handleConfigChange('dailyRewardBase', Number(e.target.value))}
-                                className="bg-black border border-slate-700 p-2 rounded text-purple-400 font-bold"
-                            />
+                            <input type="number" value={config.dailyRewardBase} onChange={(e) => handleConfigChange('dailyRewardBase', Number(e.target.value))} className="bg-black border border-slate-700 p-2 rounded text-purple-400 font-bold" />
                         </div>
                     </div>
                 </div>
@@ -285,15 +256,8 @@ const AdminView: React.FC<AdminViewProps> = ({
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {dailyRewards.map((reward, index) => (
                             <div key={index} className="flex flex-col gap-1">
-                                <label className="text-[10px] text-slate-500 uppercase font-bold">
-                                    Day {index + 1} ({reward.type === 'stars' ? 'Stars' : 'Stardust'})
-                                </label>
-                                <input 
-                                    type="number" 
-                                    value={reward.amount} 
-                                    onChange={(e) => handleDailyRewardChange(index, Number(e.target.value))}
-                                    className={`bg-black border border-slate-700 p-2 rounded font-bold ${reward.type === 'stars' ? 'text-yellow-400' : 'text-cyan-400'}`}
-                                />
+                                <label className="text-[10px] text-slate-500 uppercase font-bold">Day {index + 1} ({reward.type === 'stars' ? 'Stars' : 'Stardust'})</label>
+                                <input type="number" value={reward.amount} onChange={(e) => handleDailyRewardChange(index, Number(e.target.value))} className={`bg-black border border-slate-700 p-2 rounded font-bold ${reward.type === 'stars' ? 'text-yellow-400' : 'text-cyan-400'}`} />
                             </div>
                         ))}
                     </div>
@@ -318,8 +282,19 @@ const AdminView: React.FC<AdminViewProps> = ({
                         <input placeholder="Link (Optional)" value={newTask.link || ''} onChange={e => setNewTask({...newTask, link: e.target.value})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
                         <input placeholder="Secret Code (Optional)" value={newTask.secretCode || ''} onChange={e => setNewTask({...newTask, secretCode: e.target.value})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
                         <input type="number" placeholder="Limit (e.g. 1)" value={newTask.dailyLimit} onChange={e => setNewTask({...newTask, dailyLimit: Number(e.target.value)})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
+                        
+                        {/* ✅ NEW: Expiration Date Input */}
+                        <div className="col-span-2 flex flex-col gap-1 mt-2 border-t border-slate-800 pt-2">
+                            <label className="text-[10px] text-slate-500 uppercase font-bold">Expiration Date / Time (Optional)</label>
+                            <input 
+                                type="datetime-local" 
+                                value={newTask.expiresAt || ''} 
+                                onChange={e => setNewTask({...newTask, expiresAt: e.target.value})} 
+                                className="bg-black border border-slate-700 p-2 rounded text-xs text-white" 
+                            />
+                        </div>
                     </div>
-                    <button onClick={addTask} className="w-full bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-xs font-bold uppercase">Add Mission</button>
+                    <button onClick={addTask} className="w-full bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-xs font-bold uppercase mt-2">Add Mission</button>
                 </div>
 
                 <div className="grid gap-3">
@@ -327,7 +302,11 @@ const AdminView: React.FC<AdminViewProps> = ({
                         <div key={t.id} className="bg-slate-900/50 p-4 rounded flex justify-between items-center border border-slate-800">
                             <div>
                                 <p className="font-bold text-sm">{t.title}</p>
-                                <p className="text-[10px] text-slate-500">{t.type} • Reward: {t.reward} • Code: {t.secretCode || 'None'}</p>
+                                <p className="text-[10px] text-slate-500">
+                                    {t.type} • Reward: {t.reward} • Code: {t.secretCode || 'None'}
+                                </p>
+                                {/* @ts-ignore */}
+                                {t.expiresAt && <p className="text-[9px] text-red-400 mt-1 font-bold">Expires: {new Date(t.expiresAt).toLocaleString()}</p>}
                             </div>
                             <button onClick={() => deleteTask(t.id)} className="text-red-500 hover:text-red-400 text-xs font-bold border border-red-900 px-3 py-1 rounded">DELETE</button>
                         </div>
@@ -379,33 +358,15 @@ const AdminView: React.FC<AdminViewProps> = ({
                  <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
                     <h2 className="text-red-400 font-bold mb-4 uppercase tracking-widest border-b border-slate-800 pb-2">Add Ad Unit</h2>
                     <div className="grid grid-cols-2 gap-3 mb-4">
-                        <input 
-                            placeholder="Unit Name (e.g. 'Level Up')" 
-                            value={newAdUnit.name || ''} 
-                            onChange={e => setNewAdUnit({...newAdUnit, name: e.target.value})} 
-                            className="bg-black border border-slate-700 p-2 rounded text-xs" 
-                        />
-                        <input 
-                            placeholder="Block/Unit ID" 
-                            value={newAdUnit.blockId || ''} 
-                            onChange={e => setNewAdUnit({...newAdUnit, blockId: e.target.value})} 
-                            className="bg-black border border-slate-700 p-2 rounded text-xs font-mono" 
-                        />
-                        <select 
-                            value={newAdUnit.network} 
-                            onChange={e => setNewAdUnit({...newAdUnit, network: e.target.value as any})} 
-                            className="bg-black border border-slate-700 p-2 rounded text-xs"
-                        >
+                        <input placeholder="Unit Name (e.g. 'Level Up')" value={newAdUnit.name || ''} onChange={e => setNewAdUnit({...newAdUnit, name: e.target.value})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
+                        <input placeholder="Block/Unit ID" value={newAdUnit.blockId || ''} onChange={e => setNewAdUnit({...newAdUnit, blockId: e.target.value})} className="bg-black border border-slate-700 p-2 rounded text-xs font-mono" />
+                        <select value={newAdUnit.network} onChange={e => setNewAdUnit({...newAdUnit, network: e.target.value as any})} className="bg-black border border-slate-700 p-2 rounded text-xs">
                             <option value="Adsgram">Adsgram</option>
                             <option value="Google">Google AdSense</option>
                             <option value="Adsterra">Adsterra</option>
                             <option value="Custom">Custom / Other</option>
                         </select>
-                        <select 
-                            value={newAdUnit.type} 
-                            onChange={e => setNewAdUnit({...newAdUnit, type: e.target.value as any})} 
-                            className="bg-black border border-slate-700 p-2 rounded text-xs"
-                        >
+                        <select value={newAdUnit.type} onChange={e => setNewAdUnit({...newAdUnit, type: e.target.value as any})} className="bg-black border border-slate-700 p-2 rounded text-xs">
                             <option value="rewarded">Rewarded Video</option>
                             <option value="interstitial">Interstitial</option>
                             <option value="banner">Banner</option>
@@ -432,11 +393,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                             </div>
                         </div>
                     ))}
-                    {(!config.adUnits || config.adUnits.length === 0) && (
-                        <div className="text-center py-8 text-slate-600 text-xs uppercase tracking-widest border border-dashed border-slate-800 rounded-xl">
-                            No active ad units
-                        </div>
-                    )}
                 </div>
             </div>
         )}
@@ -492,10 +448,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                                     <p className="text-[10px] text-slate-500">Bal: {p.balance.toLocaleString()} • Lvl: {p.level}</p>
                                 </div>
                             </div>
-                            <button 
-                                onClick={() => toggleBan(p.telegramId)} 
-                                className={`px-3 py-1 rounded text-[10px] font-bold border ${p.isBanned ? 'bg-emerald-900 border-emerald-500 text-emerald-400' : 'bg-red-900 border-red-500 text-red-400'}`}
-                            >
+                            <button onClick={() => toggleBan(p.telegramId)} className={`px-3 py-1 rounded text-[10px] font-bold border ${p.isBanned ? 'bg-emerald-900 border-emerald-500 text-emerald-400' : 'bg-red-900 border-red-500 text-red-400'}`}>
                                 {p.isBanned ? 'UNBAN' : 'BAN'}
                             </button>
                         </div>
