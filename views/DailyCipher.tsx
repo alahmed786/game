@@ -1,21 +1,56 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MORSE_CODE_MAP } from '../constants';
 import { DailyCipherViewProps } from '../types';
+
+// ✅ NEW: Countdown Timer Component for Cipher
+const CipherCountdownTimer: React.FC = () => {
+  const calculateTimeLeft = () => {
+    const now = Date.now();
+    // Calculate the exact start of the NEXT day (UTC Midnight)
+    const nextMidnight = Math.ceil(now / 86400000) * 86400000;
+    const timeLeft = nextMidnight - now;
+
+    if (timeLeft <= 0) return "00:00:00";
+
+    const hours = Math.floor(timeLeft / 3600000);
+    const minutes = Math.floor((timeLeft % 3600000) / 60000);
+    const seconds = Math.floor((timeLeft % 60000) / 1000);
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="mt-2 flex flex-col items-center animate-fade-in">
+        <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 font-bold uppercase tracking-widest mb-1">Next Transmission In</span>
+        <div className="text-2xl font-mono font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-5 py-2 rounded-xl border border-emerald-500/20 shadow-inner">
+            {timeLeft}
+        </div>
+    </div>
+  );
+};
 
 const DailyCipherView: React.FC<DailyCipherViewProps> = ({ onSolve, onBack, isCipherClaimed, theme, cipherWord }) => {
   const [input, setInput] = useState('');
   const [feedback, setFeedback] = useState('');
   const pressTimer = useRef<number | null>(null);
 
-  // ✅ NEW: Dynamic Word Selection Logic
   // Convert comma-separated string from Admin to an array
   const wordsList = (cipherWord || 'SPACE')
     .split(',')
     .map(w => w.trim().toUpperCase())
     .filter(w => w.length > 0);
 
-  // Get current day index based on Unix Epoch (so it changes exactly every 24h globally)
-  const currentDayIndex = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+  // Get current day index based on Unix Epoch (changes exactly every 24h globally)
+  const currentDayIndex = Math.floor(Date.now() / 86400000);
   
   // Pick the word based on the day. If it runs out of words, it loops back to the start.
   const targetWord = wordsList.length > 0 
@@ -56,20 +91,24 @@ const DailyCipherView: React.FC<DailyCipherViewProps> = ({ onSolve, onBack, isCi
   };
 
   const claimedView = (
-    <div className="text-center gap-6 flex flex-col items-center justify-center h-full animate-fade-in">
-      <div className="w-24 h-24 rounded-full bg-emerald-100 dark:bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.2)] animate-pulse">
+    <div className="text-center gap-6 flex flex-col items-center justify-center h-full animate-fade-in w-full">
+      <div className="w-24 h-24 rounded-full bg-emerald-100 dark:bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.2)] animate-pulse mt-4">
         <span className="text-6xl drop-shadow-lg">🛰️</span>
       </div>
       <div>
         <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-wider mb-2">Transmission Decoded</h2>
         <p className="text-emerald-600 dark:text-emerald-400 font-mono text-xs tracking-widest">INTELLIGENCE SECURED</p>
       </div>
-      <div className="bg-white/60 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-white/5 max-w-xs backdrop-blur-md">
-         <p className="text-slate-500 dark:text-slate-400 text-sm">You have successfully cracked today's cipher code. Return tomorrow for new orders.</p>
+      
+      <div className="bg-white/60 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-200 dark:border-white/5 max-w-xs backdrop-blur-md shadow-lg flex flex-col gap-4 w-full">
+         <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">You have successfully cracked today's cipher code. Return tomorrow for new orders.</p>
+         {/* ✅ NEW: Live Countdown Timer */}
+         <CipherCountdownTimer />
       </div>
+
       <button 
         onClick={onBack} 
-        className="w-full max-w-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all text-xs uppercase tracking-[0.2em]"
+        className="w-full max-w-xs mt-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all text-xs uppercase tracking-[0.2em]"
       >
         Return to Bridge
       </button>
