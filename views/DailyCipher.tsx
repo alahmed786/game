@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MORSE_CODE_MAP } from '../constants';
 import { DailyCipherViewProps } from '../types';
 
-// ✅ NEW: Countdown Timer Component for Cipher
+// Countdown Timer Component for Cipher
 const CipherCountdownTimer: React.FC = () => {
   const calculateTimeLeft = () => {
     const now = Date.now();
@@ -102,7 +102,6 @@ const DailyCipherView: React.FC<DailyCipherViewProps> = ({ onSolve, onBack, isCi
       
       <div className="bg-white/60 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-200 dark:border-white/5 max-w-xs backdrop-blur-md shadow-lg flex flex-col gap-4 w-full">
          <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">You have successfully cracked today's cipher code. Return tomorrow for new orders.</p>
-         {/* ✅ NEW: Live Countdown Timer */}
          <CipherCountdownTimer />
       </div>
 
@@ -119,21 +118,21 @@ const DailyCipherView: React.FC<DailyCipherViewProps> = ({ onSolve, onBack, isCi
     <div className="flex flex-col items-center w-full max-w-sm gap-6 animate-fade-in max-h-[85vh] overflow-y-auto">
       
       {/* Header / Target Word */}
-      <div className="flex flex-col items-center w-full gap-2">
+      <div className="flex flex-col items-center w-full gap-2 px-2">
         <div className="flex items-center gap-2 mb-2">
             <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
             <span className="text-[10px] text-red-500 dark:text-red-400 font-mono uppercase tracking-[0.2em]">Live Signal</span>
         </div>
         
         <div className="relative w-full flex justify-center py-4">
-             {/* Glowing Word */}
-            <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 tracking-[0.3em] drop-shadow-sm z-10">
+             {/* ✅ FIX: Responsive text sizing, reduced tracking, added break-words so long words fit screen */}
+            <h1 className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 tracking-[0.15em] sm:tracking-[0.25em] drop-shadow-sm z-10 text-center w-full break-words leading-tight">
                 {targetWord}
             </h1>
             <div className={`absolute inset-0 bg-${theme}-500/10 blur-2xl rounded-full z-0 animate-pulse`}></div>
         </div>
         
-        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Enter Morse Sequence</p>
+        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest text-center mt-2">Enter Morse Sequence</p>
       </div>
 
       {/* Input Display */}
