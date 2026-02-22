@@ -53,6 +53,10 @@ const App: React.FC = () => {
   const [pendingTasks, setPendingTasks] = useState<string[]>([]);
   const [animateBalance, setAnimateBalance] = useState(false);
 
+  // ✅ NEW: Level Up Notification State & Ref
+  const [showLevelAlert, setShowLevelAlert] = useState(false);
+  const lastNotifiedLevelRef = useRef<number>(0);
+
   const [theme, setTheme] = useState<Theme>('cyan');
   const [isDarkMode, setIsDarkMode] = useState(true); 
 
@@ -307,16 +311,29 @@ const App: React.FC = () => {
     setTimeout(() => setAnimateBalance(false), 500); 
   };
 
+  // ✅ UPDATED: Leveling Logic with Notification Trigger
   useEffect(() => {
     if (!player) return;
     const currentLevel = player.level;
     const nextLevelRequirement = LEVEL_BALANCE_REQUIREMENTS[currentLevel];
     const requiredAds = calculateLevelUpAdsReq(currentLevel);
     
-    if (nextLevelRequirement !== undefined && player.balance >= nextLevelRequirement && player.levelUpAdsWatched >= requiredAds) {
-        const updated = { ...player, level: player.level + 1, levelUpAdsWatched: 0 };
-        setPlayer(updated);
-        savePlayerToSupabase(updated, upgrades);
+    if (nextLevelRequirement !== undefined && player.balance >= nextLevelRequirement) {
+        if (player.levelUpAdsWatched >= requiredAds) {
+            // Level Up Condition Met!
+            const updated = { ...player, level: player.level + 1, levelUpAdsWatched: 0 };
+            setPlayer(updated);
+            savePlayerToSupabase(updated, upgradesRef.current);
+            lastNotifiedLevelRef.current = 0; // Reset notification for the new level
+        } else {
+            // Progress is full, but ads haven't been watched. Show Notification!
+            if (lastNotifiedLevelRef.current !== currentLevel) {
+                setShowLevelAlert(true);
+                lastNotifiedLevelRef.current = currentLevel;
+                // Auto-hide after 5 seconds
+                setTimeout(() => setShowLevelAlert(false), 5000);
+            }
+        }
     }
 
     const newTheme = getLevelTheme(player.level);
@@ -557,7 +574,6 @@ const App: React.FC = () => {
   const handleInitiateTask = (task: Task) => {
     if (!player) return;
     
-    // ✅ NEW: Safely construct target URL from Link or Chat ID
     // @ts-ignore
     const rawChatId = task.chatId || '';
     const cleanChatId = rawChatId.startsWith('@') ? rawChatId.replace('@', '') : rawChatId;
@@ -578,7 +594,6 @@ const App: React.FC = () => {
             savePlayerToSupabase(updatedPlayer, upgradesRef.current);
         } else {
             setPendingTasks(prev => [...new Set([...prev, task.id])]);
-            // ✅ Use the reliable constructed URL to redirect
             if (targetUrl) {
                  if (window.Telegram?.WebApp?.openTelegramLink) window.Telegram.WebApp.openTelegramLink(targetUrl);
                  else if (window.Telegram?.WebApp?.openLink) window.Telegram.WebApp.openLink(targetUrl);
@@ -762,7 +777,43 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] overflow-hidden">
+    <div className="flex flex-col h-[100dvh] overflow-hidden relative">
+      
+      {/* ✅ NEW: Global Level Up Notification */}
+      {showLevelAlert && (
+          <div className="absolute top-[80px] left-4 right-4 z-[100] pointer-events-auto">
+             <div className={`bg-slate-900/95 backdrop-blur-xl border-2 border-${theme}-500/50 shadow-[0_10px_40px_rgba(var(--bg-primary),0.4)] p-4 rounded-2xl flex items-center gap-3 animate-slide-down-fade`}>
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl bg-slate-800 border border-white/10 animate-pulse flex-shrink-0">
+                   🚀
+                </div>
+                <div className="flex flex-col flex-1">
+                   <h4 className={`text-white font-black uppercase tracking-widest text-sm drop-shadow-md`}>Level {player.level + 1} Ready!</h4>
+                   <p className="text-slate-400 text-[9px] uppercase font-bold tracking-wider mt-0.5 leading-tight">
+                      Go to missions and complete the security check to unlock.
+                   </p>
+                </div>
+                <button 
+                   onClick={() => {
+                      setView('Tasks');
+                      setShowLevelAlert(false);
+                   }} 
+                   className={`bg-gradient-to-r from-${theme}-600 to-${theme}-400 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-transform flex-shrink-0`}
+                >
+                   GO
+                </button>
+             </div>
+             <style>{`
+                @keyframes slideDownFade {
+                  0% { opacity: 0; transform: translateY(-20px) scale(0.95); }
+                  100% { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                .animate-slide-down-fade {
+                  animation: slideDownFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+             `}</style>
+          </div>
+      )}
+
       <div className='flex flex-col h-full'>
         {view !== 'DailyReward' && view !== 'DailyCipher' && view !== 'Admin' && (
           <StatsHeader 
