@@ -95,7 +95,6 @@ const AdminView: React.FC<AdminViewProps> = ({
       });
   };
 
-  // --- Task Management with Expiry & Auto-Clean ---
   const [newTask, setNewTask] = useState<Partial<any>>({ type: 'telegram', reward: 1000 });
   
   const addTask = () => {
@@ -125,14 +124,12 @@ const AdminView: React.FC<AdminViewProps> = ({
       let removedCount = 0;
 
       const activeTasks = tasks.filter(task => {
-          // 1. Check Expiration Date
           // @ts-ignore
           if (task.expiresAt && new Date(task.expiresAt).getTime() <= now) {
               removedCount++;
-              return false; // Remove expired
+              return false; 
           }
 
-          // 2. Check if all existing players have completed it
           if (players.length > 0) {
               const limit = task.dailyLimit || 1;
               const allCompleted = players.every(p => {
@@ -145,11 +142,11 @@ const AdminView: React.FC<AdminViewProps> = ({
 
               if (allCompleted) {
                   removedCount++;
-                  return false; // Remove fully completed
+                  return false; 
               }
           }
 
-          return true; // Keep task
+          return true; 
       });
 
       if (removedCount > 0) {
@@ -160,7 +157,6 @@ const AdminView: React.FC<AdminViewProps> = ({
       }
   };
 
-  // --- Fleet Management ---
   const [newDeal, setNewDeal] = useState<Partial<StellarDeal>>({ costType: 'stars', rewardType: 'stardust_boost' });
   const addDeal = () => {
     if (!newDeal.title) return;
@@ -179,7 +175,6 @@ const AdminView: React.FC<AdminViewProps> = ({
   };
   const deleteDeal = (id: string) => setStellarDeals(stellarDeals.filter(d => d.id !== id));
 
-  // --- Ad Unit Management ---
   const [newAdUnit, setNewAdUnit] = useState<Partial<AdUnit>>({ type: 'rewarded', network: 'Adsgram', active: true });
   const addAdUnit = () => {
       if (!newAdUnit.name || !newAdUnit.blockId) return;
@@ -198,7 +193,6 @@ const AdminView: React.FC<AdminViewProps> = ({
       setConfig(prev => ({ ...prev, adUnits: prev.adUnits.filter(u => u.id !== id) }));
   };
 
-  // --- Finance ---
   const handleWithdrawalAction = async (id: string, action: 'Paid' | 'Rejected') => {
     const player = players.find(p => p.withdrawalHistory.some(w => w.id === id));
     if (!player) return;
@@ -215,7 +209,6 @@ const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
-  // --- Users ---
   const toggleBan = async (id: string) => {
       const player = players.find(p => p.telegramId === id);
       if(!player) return;
@@ -272,9 +265,15 @@ const AdminView: React.FC<AdminViewProps> = ({
                 <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
                     <h2 className="text-red-400 font-bold mb-4 uppercase tracking-widest border-b border-slate-800 pb-2">Game Settings</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-1">
-                            <label className="text-[10px] text-slate-500 uppercase font-bold">Daily Cipher Word</label>
-                            <input type="text" value={config.dailyCipherWord} onChange={(e) => handleConfigChange('dailyCipherWord', e.target.value.toUpperCase())} className="bg-black border border-slate-700 p-2 rounded text-emerald-400 font-bold tracking-widest" />
+                        <div className="flex flex-col gap-1 col-span-1 md:col-span-2">
+                            <label className="text-[10px] text-slate-500 uppercase font-bold">Daily Cipher Words (Comma Separated for Day 1, Day 2, etc.)</label>
+                            <input 
+                                type="text" 
+                                placeholder="e.g. ALPHA, BRAVO, CHARLIE, SPACE"
+                                value={config.dailyCipherWord} 
+                                onChange={(e) => handleConfigChange('dailyCipherWord', e.target.value.toUpperCase())} 
+                                className="bg-black border border-slate-700 p-2 rounded text-emerald-400 font-bold tracking-widest" 
+                            />
                         </div>
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] text-slate-500 uppercase font-bold">Cipher Reward Amount</label>
@@ -325,7 +324,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                         <input type="number" placeholder="Reward" value={newTask.reward} onChange={e => setNewTask({...newTask, reward: Number(e.target.value)})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
                         <input placeholder="URL Link (https://...)" value={newTask.link || ''} onChange={e => setNewTask({...newTask, link: e.target.value})} className="bg-black border border-slate-700 p-2 rounded text-xs" />
                         
-                        {/* ✅ NEW: TELEGRAM CHAT ID FIELD */}
                         {newTask.type === 'telegram' ? (
                             <input placeholder="Chat ID / @username (e.g. @mychannel)" value={newTask.chatId || ''} onChange={e => setNewTask({...newTask, chatId: e.target.value})} className="bg-black border border-slate-700 p-2 rounded text-xs border-purple-500/50" />
                         ) : (
