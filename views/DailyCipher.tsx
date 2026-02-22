@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { MORSE_CODE_MAP } from '../constants';
 import { DailyCipherViewProps } from '../types';
@@ -8,8 +7,22 @@ const DailyCipherView: React.FC<DailyCipherViewProps> = ({ onSolve, onBack, isCi
   const [feedback, setFeedback] = useState('');
   const pressTimer = useRef<number | null>(null);
 
+  // ✅ NEW: Dynamic Word Selection Logic
+  // Convert comma-separated string from Admin to an array
+  const wordsList = (cipherWord || 'SPACE')
+    .split(',')
+    .map(w => w.trim().toUpperCase())
+    .filter(w => w.length > 0);
+
+  // Get current day index based on Unix Epoch (so it changes exactly every 24h globally)
+  const currentDayIndex = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+  
+  // Pick the word based on the day. If it runs out of words, it loops back to the start.
+  const targetWord = wordsList.length > 0 
+      ? wordsList[currentDayIndex % wordsList.length] 
+      : 'SPACE';
+
   // Safe morse conversion
-  const targetWord = (cipherWord || 'SPACE').toUpperCase();
   const correctMorseSequence = targetWord.split('').map(char => MORSE_CODE_MAP[char] || '').join('');
 
   const handlePointerDown = () => {
