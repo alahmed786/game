@@ -109,11 +109,14 @@ const DailyRewardView: React.FC<DailyRewardViewProps> = ({ player, onClaim, onBa
 
                     return (
                         <div key={day} className={cardStyle}>
-                            <div className={`absolute top-1.5 left-2 text-[9px] font-bold uppercase tracking-wider 
-                                ${isMystery ? (isCurrent ? 'text-purple-600 dark:text-purple-200' : isClaimed ? 'text-emerald-500/70 dark:text-emerald-500/50' : 'text-purple-400 dark:text-purple-500/70') : 
-                                  (isCurrent ? `text-${theme}-600 dark:text-${theme}-200` : isClaimed ? 'text-emerald-500/70 dark:text-emerald-500/50' : 'text-slate-400 dark:text-slate-600')}`}>
-                                {isMystery ? 'Day 7' : `Day ${day}`}
-                            </div>
+                            {/* Hide the "Day X" label if the reward is claimed */}
+                            {!isClaimed && (
+                                <div className={`absolute top-1.5 left-2 text-[9px] font-bold uppercase tracking-wider 
+                                    ${isMystery ? (isCurrent ? 'text-purple-600 dark:text-purple-200' : 'text-purple-400 dark:text-purple-500/70') : 
+                                      (isCurrent ? `text-${theme}-600 dark:text-${theme}-200` : 'text-slate-400 dark:text-slate-600')}`}>
+                                    {isMystery ? 'Day 7' : `Day ${day}`}
+                                </div>
+                            )}
 
                             {isMystery ? (
                                 <>
