@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Player, DailyRewardViewProps, DailyReward } from '../types';
 
@@ -33,6 +32,14 @@ const CountdownTimer: React.FC<{ lastClaimed: number | null }> = ({ lastClaimed 
     <div className="text-xl font-mono font-bold text-slate-900 dark:text-white tracking-widest bg-white/50 dark:bg-black/40 px-3 py-1 rounded-lg border border-slate-200 dark:border-white/10 shadow-sm">{timeLeft}</div>
   );
 };
+
+// SVG Icon for a cleaner claimed state
+const ClaimedCheckIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 text-emerald-500 drop-shadow-sm opacity-90" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M7.75 12L10.58 14.83L16.25 9.17004" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
 
 const DailyRewardView: React.FC<DailyRewardViewProps> = ({ player, onClaim, onBack, isRewardAvailable, theme, rewards }) => {
   const currentStreakIndex = player.consecutiveDays % rewards.length;
@@ -83,7 +90,7 @@ const DailyRewardView: React.FC<DailyRewardViewProps> = ({ player, onClaim, onBa
                     let cardStyle = `relative rounded-xl flex flex-col items-center justify-center border transition-all duration-300 overflow-hidden group ${spanClass} `;
                     
                     if (isClaimed) {
-                        cardStyle += `bg-white/40 dark:bg-slate-900/40 border-emerald-500/30 shadow-inner`;
+                        cardStyle += `bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-500/20 shadow-inner`;
                     } else if (isCurrent) {
                         cardStyle += `bg-white/90 dark:bg-slate-800/90 border-${theme}-400 shadow-[0_0_20px_rgba(var(--bg-primary),0.2)] scale-[1.03] z-10 ring-2 ring-${theme}-400/30`;
                     } else { 
@@ -94,7 +101,7 @@ const DailyRewardView: React.FC<DailyRewardViewProps> = ({ player, onClaim, onBa
                         if (isCurrent) {
                              cardStyle = `relative rounded-xl flex flex-row items-center justify-between px-5 py-2 border transition-all duration-300 overflow-hidden group ${spanClass} bg-gradient-to-r from-purple-100/80 to-indigo-100/80 dark:from-purple-900/80 dark:to-indigo-900/80 border-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.4)] scale-[1.03] z-10`;
                         } else if (isClaimed) {
-                             cardStyle = `relative rounded-xl flex flex-row items-center justify-between px-5 py-2 border transition-all duration-300 overflow-hidden group ${spanClass} bg-purple-50 dark:bg-purple-900/20 border-emerald-500/30`;
+                             cardStyle = `relative rounded-xl flex flex-row items-center justify-between px-5 py-2 border transition-all duration-300 overflow-hidden group ${spanClass} bg-emerald-50/50 dark:bg-emerald-900/20 border-emerald-500/20`;
                         } else {
                              cardStyle = `relative rounded-xl flex flex-row items-center justify-between px-5 py-2 border transition-all duration-300 overflow-hidden group ${spanClass} bg-gradient-to-r from-purple-50/50 to-slate-50/50 dark:from-purple-900/20 dark:to-slate-900/20 border-purple-500/20 opacity-40`;
                         }
@@ -103,31 +110,31 @@ const DailyRewardView: React.FC<DailyRewardViewProps> = ({ player, onClaim, onBa
                     return (
                         <div key={day} className={cardStyle}>
                             <div className={`absolute top-1.5 left-2 text-[9px] font-bold uppercase tracking-wider 
-                                ${isMystery ? (isCurrent ? 'text-purple-600 dark:text-purple-200' : 'text-purple-400 dark:text-purple-500/70') : 
-                                  (isCurrent ? `text-${theme}-600 dark:text-${theme}-200` : isClaimed ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-600')}`}>
+                                ${isMystery ? (isCurrent ? 'text-purple-600 dark:text-purple-200' : isClaimed ? 'text-emerald-500/70 dark:text-emerald-500/50' : 'text-purple-400 dark:text-purple-500/70') : 
+                                  (isCurrent ? `text-${theme}-600 dark:text-${theme}-200` : isClaimed ? 'text-emerald-500/70 dark:text-emerald-500/50' : 'text-slate-400 dark:text-slate-600')}`}>
                                 {isMystery ? 'Day 7' : `Day ${day}`}
                             </div>
 
                             {isMystery ? (
                                 <>
                                     <div className="flex flex-col items-start mt-3">
-                                        <span className={`text-xs font-bold ${isCurrent ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
-                                            {isClaimed ? '5 Stars' : 'Mystery'}
+                                        <span className={`text-xs font-bold ${isCurrent ? 'text-slate-900 dark:text-white' : isClaimed ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                            {isClaimed ? 'Secured' : 'Mystery'}
                                         </span>
-                                        <span className="text-[9px] text-purple-500 dark:text-purple-300 font-medium">Legendary</span>
+                                        {!isClaimed && <span className="text-[9px] text-purple-500 dark:text-purple-300 font-medium">Legendary</span>}
                                     </div>
-                                    <div className={`text-3xl drop-shadow-md ${isCurrent ? 'animate-bounce' : ''}`}>
-                                        {isClaimed ? '⭐' : '🎁'}
+                                    <div className={`flex items-center justify-center ${isCurrent ? 'animate-bounce text-3xl drop-shadow-md' : ''}`}>
+                                        {isClaimed ? <ClaimedCheckIcon /> : '🎁'}
                                     </div>
                                     {!isClaimed && isCurrent && <div className="absolute inset-0 bg-purple-500/10 animate-pulse"></div>}
                                 </>
                             ) : (
                                 <>
-                                    <div className={`text-2xl mb-1 mt-3 drop-shadow-md transition-transform ${isCurrent ? 'scale-110' : ''}`}>
-                                        {isClaimed ? '✅' : reward.type === 'stars' ? '⭐' : '🪐'}
+                                    <div className={`flex items-center justify-center mb-1 mt-3 transition-transform ${isCurrent ? 'scale-110 text-2xl drop-shadow-md' : 'text-2xl'}`}>
+                                        {isClaimed ? <ClaimedCheckIcon /> : reward.type === 'stars' ? '⭐' : '🪐'}
                                     </div>
-                                    <div className={`text-[10px] font-bold ${isCurrent ? 'text-slate-900 dark:text-white' : isClaimed ? 'text-emerald-500 dark:text-emerald-300' : 'text-slate-400 dark:text-slate-500'}`}>
-                                        {isClaimed ? 'Claimed' : reward.amount >= 1000 ? `${(reward.amount/1000).toFixed(0)}K` : reward.amount}
+                                    <div className={`text-[10px] font-bold ${isCurrent ? 'text-slate-900 dark:text-white' : isClaimed ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                                        {isClaimed ? 'Secured' : reward.amount >= 1000 ? `${(reward.amount/1000).toFixed(0)}K` : reward.amount}
                                     </div>
                                 </>
                             )}
