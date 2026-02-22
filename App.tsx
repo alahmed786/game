@@ -26,6 +26,7 @@ declare global {
   }
 }
 
+// ✅ UPDATED ADMIN ID
 const ADMIN_ID = "702954043";
 
 const App: React.FC = () => {
@@ -53,12 +54,20 @@ const App: React.FC = () => {
   const [pendingTasks, setPendingTasks] = useState<string[]>([]);
   const [animateBalance, setAnimateBalance] = useState(false);
 
-  // ✅ NEW: Level Up Notification State & Ref
+  // Level Up Notification State
   const [showLevelAlert, setShowLevelAlert] = useState(false);
   const lastNotifiedLevelRef = useRef<number>(0);
 
   const [theme, setTheme] = useState<Theme>('cyan');
-  const [isDarkMode, setIsDarkMode] = useState(true); 
+  
+  // ✅ NEW: Initialize Dark Mode from Local Storage
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+      const savedTheme = localStorage.getItem('app_theme');
+      if (savedTheme !== null) {
+          return savedTheme === 'dark';
+      }
+      return true; // Default before Telegram check
+  }); 
 
   const [dealToProcess, setDealToProcess] = useState<StellarDeal | null>(null);
   const [isDealAdModalVisible, setIsDealAdModalVisible] = useState(false);
@@ -77,11 +86,25 @@ const App: React.FC = () => {
     upgradesRef.current = upgrades;
   }, [player, upgrades]);
 
+  // ✅ NEW: Toggle Theme and Save to Local Storage
   const toggleThemeMode = () => {
     setIsDarkMode(prev => {
         const newMode = !prev;
-        if (newMode) document.documentElement.classList.add('dark');
-        else document.documentElement.classList.remove('dark');
+        
+        if (newMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('app_theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('app_theme', 'light');
+        }
+
+        // Update Telegram App Header dynamically
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.setHeaderColor(newMode ? '#030712' : '#f0f9ff'); 
+        }
+
         return newMode;
     });
   };
@@ -130,22 +153,34 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // ✅ NEW: Apply Local Storage Theme on App Boot
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
     if (tg) {
       const app = tg as any;
       app.ready();
       app.expand();
-      app.setHeaderColor(isDarkMode ? '#030712' : '#f0f9ff'); 
       app.enableClosingConfirmation();
       
-      if (app.colorScheme === 'light') {
-          setIsDarkMode(false);
-          document.documentElement.classList.remove('dark');
-      } else {
-          setIsDarkMode(true);
-          document.documentElement.classList.add('dark');
+      const savedTheme = localStorage.getItem('app_theme');
+      let finalMode = true;
+
+      // Prioritize saved theme, fallback to Telegram's scheme
+      if (savedTheme !== null) {
+          finalMode = savedTheme === 'dark';
+      } else if (app.colorScheme === 'light') {
+          finalMode = false;
       }
+
+      setIsDarkMode(finalMode);
+      
+      if (finalMode) {
+          document.documentElement.classList.add('dark');
+      } else {
+          document.documentElement.classList.remove('dark');
+      }
+
+      app.setHeaderColor(finalMode ? '#030712' : '#f0f9ff'); 
     }
 
     const userData = tg?.initDataUnsafe?.user;
@@ -311,7 +346,6 @@ const App: React.FC = () => {
     setTimeout(() => setAnimateBalance(false), 500); 
   };
 
-  // ✅ UPDATED: Leveling Logic with Notification Trigger
   useEffect(() => {
     if (!player) return;
     const currentLevel = player.level;
@@ -324,14 +358,14 @@ const App: React.FC = () => {
             const updated = { ...player, level: player.level + 1, levelUpAdsWatched: 0 };
             setPlayer(updated);
             savePlayerToSupabase(updated, upgradesRef.current);
-            lastNotifiedLevelRef.current = 0; // Reset notification for the new level
+            lastNotifiedLevelRef.current = 0; // Reset notification
         } else {
-            // Progress is full, but ads haven't been watched. Show Notification!
+            // Needs to watch ads - Show Notification
             if (lastNotifiedLevelRef.current !== currentLevel) {
                 setShowLevelAlert(true);
                 lastNotifiedLevelRef.current = currentLevel;
-                // Auto-hide after 5 seconds
-                setTimeout(() => setShowLevelAlert(false), 5000);
+                // ✅ UPDATED: Lasts for 10 seconds
+                setTimeout(() => setShowLevelAlert(false), 10000);
             }
         }
     }
@@ -779,16 +813,16 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-[100dvh] overflow-hidden relative">
       
-      {/* ✅ NEW: Global Level Up Notification */}
+      {/* ✅ UPDATED: Beautiful Day/Night Compliant Glowing Notification (Lasts 10 Seconds) */}
       {showLevelAlert && (
           <div className="absolute top-[80px] left-4 right-4 z-[100] pointer-events-auto">
-             <div className={`bg-slate-900/95 backdrop-blur-xl border-2 border-${theme}-500/50 shadow-[0_10px_40px_rgba(var(--bg-primary),0.4)] p-4 rounded-2xl flex items-center gap-3 animate-slide-down-fade`}>
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl bg-slate-800 border border-white/10 animate-pulse flex-shrink-0">
+             <div className={`bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-${theme}-400 dark:border-${theme}-500/80 shadow-[0_0_25px_0px_var(--tw-shadow-color)] shadow-${theme}-400/50 dark:shadow-${theme}-500/40 p-4 rounded-2xl flex items-center gap-3 animate-slide-down-fade`}>
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 animate-pulse flex-shrink-0">
                    🚀
                 </div>
                 <div className="flex flex-col flex-1">
-                   <h4 className={`text-white font-black uppercase tracking-widest text-sm drop-shadow-md`}>Level {player.level + 1} Ready!</h4>
-                   <p className="text-slate-400 text-[9px] uppercase font-bold tracking-wider mt-0.5 leading-tight">
+                   <h4 className={`text-slate-900 dark:text-white font-black uppercase tracking-widest text-sm drop-shadow-sm`}>Level {player.level + 1} Ready!</h4>
+                   <p className="text-slate-600 dark:text-slate-400 text-[9px] uppercase font-bold tracking-wider mt-0.5 leading-tight">
                       Go to missions and complete the security check to unlock.
                    </p>
                 </div>
@@ -797,7 +831,7 @@ const App: React.FC = () => {
                       setView('Tasks');
                       setShowLevelAlert(false);
                    }} 
-                   className={`bg-gradient-to-r from-${theme}-600 to-${theme}-400 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-transform flex-shrink-0`}
+                   className={`bg-gradient-to-r from-${theme}-500 to-${theme}-600 dark:from-${theme}-600 dark:to-${theme}-400 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-${theme}-500/30 active:scale-95 transition-transform flex-shrink-0`}
                 >
                    GO
                 </button>
