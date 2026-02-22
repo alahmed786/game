@@ -26,7 +26,6 @@ declare global {
   }
 }
 
-// ✅ UPDATED ADMIN ID
 const ADMIN_ID = "702954043";
 
 const App: React.FC = () => {
@@ -54,19 +53,17 @@ const App: React.FC = () => {
   const [pendingTasks, setPendingTasks] = useState<string[]>([]);
   const [animateBalance, setAnimateBalance] = useState(false);
 
-  // Level Up Notification State
   const [showLevelAlert, setShowLevelAlert] = useState(false);
   const lastNotifiedLevelRef = useRef<number>(0);
 
   const [theme, setTheme] = useState<Theme>('cyan');
   
-  // ✅ NEW: Initialize Dark Mode from Local Storage
   const [isDarkMode, setIsDarkMode] = useState(() => {
       const savedTheme = localStorage.getItem('app_theme');
       if (savedTheme !== null) {
           return savedTheme === 'dark';
       }
-      return true; // Default before Telegram check
+      return true; 
   }); 
 
   const [dealToProcess, setDealToProcess] = useState<StellarDeal | null>(null);
@@ -86,11 +83,9 @@ const App: React.FC = () => {
     upgradesRef.current = upgrades;
   }, [player, upgrades]);
 
-  // ✅ NEW: Toggle Theme and Save to Local Storage
   const toggleThemeMode = () => {
     setIsDarkMode(prev => {
         const newMode = !prev;
-        
         if (newMode) {
             document.documentElement.classList.add('dark');
             localStorage.setItem('app_theme', 'dark');
@@ -98,13 +93,10 @@ const App: React.FC = () => {
             document.documentElement.classList.remove('dark');
             localStorage.setItem('app_theme', 'light');
         }
-
-        // Update Telegram App Header dynamically
         const tg = window.Telegram?.WebApp;
         if (tg) {
             tg.setHeaderColor(newMode ? '#030712' : '#f0f9ff'); 
         }
-
         return newMode;
     });
   };
@@ -153,7 +145,6 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // ✅ NEW: Apply Local Storage Theme on App Boot
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
     if (tg) {
@@ -165,7 +156,6 @@ const App: React.FC = () => {
       const savedTheme = localStorage.getItem('app_theme');
       let finalMode = true;
 
-      // Prioritize saved theme, fallback to Telegram's scheme
       if (savedTheme !== null) {
           finalMode = savedTheme === 'dark';
       } else if (app.colorScheme === 'light') {
@@ -202,6 +192,8 @@ const App: React.FC = () => {
         lastRewardClaimed: null,
         consecutiveDays: 0,
         dailyCipherClaimed: false,
+        // @ts-ignore
+        lastCipherClaimed: null,
         level: 1,
         levelUpAdsWatched: 0, 
         stars: 5,
@@ -253,7 +245,9 @@ const App: React.FC = () => {
                     referralCount: remotePlayer.referralcount || 0,
                     invitedBy: remotePlayer.invitedby || remotePlayer.invitedBy,
                     ...remotePlayer.gamestate,
-                    photoUrl: userData?.photo_url || remotePlayer.gamestate?.photoUrl 
+                    photoUrl: userData?.photo_url || remotePlayer.gamestate?.photoUrl,
+                    // @ts-ignore
+                    lastCipherClaimed: remotePlayer.gamestate?.lastCipherClaimed || null
                 };
 
                 if (remotePlayer.gamestate && remotePlayer.gamestate.upgrades) {
@@ -271,6 +265,18 @@ const App: React.FC = () => {
                         }
                     }
                 }
+
+                // ✅ NEW: Daily Cipher Midnight Reset Logic
+                // @ts-ignore
+                if (parsedPlayer.lastCipherClaimed) {
+                    // @ts-ignore
+                    const claimDay = Math.floor(parsedPlayer.lastCipherClaimed / 86400000);
+                    const currentDay = Math.floor(Date.now() / 86400000);
+                    if (currentDay > claimDay) {
+                        parsedPlayer.dailyCipherClaimed = false; // Reset if new UTC day
+                    }
+                }
+
                 parsedPlayer.lastUpdate = Date.now();
                 loadedPlayer = parsedPlayer;
                 setCanSave(true);
@@ -346,6 +352,26 @@ const App: React.FC = () => {
     setTimeout(() => setAnimateBalance(false), 500); 
   };
 
+  // ✅ Active Check for Midnight Resets while the app is open
+  useEffect(() => {
+      const checkMidnightReset = () => {
+          if (!player) return;
+          // @ts-ignore
+          if (player.dailyCipherClaimed && player.lastCipherClaimed) {
+              // @ts-ignore
+              const claimDay = Math.floor(player.lastCipherClaimed / 86400000);
+              const currentDay = Math.floor(Date.now() / 86400000);
+              if (currentDay > claimDay) {
+                  setPlayer(p => p ? { ...p, dailyCipherClaimed: false } : p);
+              }
+          }
+      };
+      
+      const interval = setInterval(checkMidnightReset, 60000); // Check every minute
+      checkMidnightReset();
+      return () => clearInterval(interval);
+  }, [player?.dailyCipherClaimed]);
+
   useEffect(() => {
     if (!player) return;
     const currentLevel = player.level;
@@ -354,17 +380,14 @@ const App: React.FC = () => {
     
     if (nextLevelRequirement !== undefined && player.balance >= nextLevelRequirement) {
         if (player.levelUpAdsWatched >= requiredAds) {
-            // Level Up Condition Met!
             const updated = { ...player, level: player.level + 1, levelUpAdsWatched: 0 };
             setPlayer(updated);
             savePlayerToSupabase(updated, upgradesRef.current);
-            lastNotifiedLevelRef.current = 0; // Reset notification
+            lastNotifiedLevelRef.current = 0; 
         } else {
-            // Needs to watch ads - Show Notification
             if (lastNotifiedLevelRef.current !== currentLevel) {
                 setShowLevelAlert(true);
                 lastNotifiedLevelRef.current = currentLevel;
-                // ✅ UPDATED: Lasts for 10 seconds
                 setTimeout(() => setShowLevelAlert(false), 10000);
             }
         }
@@ -584,9 +607,18 @@ const App: React.FC = () => {
     savePlayerToSupabase(updatedPlayer, upgradesRef.current);
   };
   
+  // ✅ UPDATED: Add the Timestamp!
   const handleSolveCipher = () => {
     if (!player || player.dailyCipherClaimed) return;
-    const updated = { ...player, balance: player.balance + adminConfig.dailyCipherReward, dailyCipherClaimed: true };
+    
+    const updated = { 
+        ...player, 
+        balance: player.balance + adminConfig.dailyCipherReward, 
+        dailyCipherClaimed: true,
+        // @ts-ignore - Explicitly storing exactly when they cracked it
+        lastCipherClaimed: Date.now() 
+    } as any;
+    
     setPlayer(updated);
     triggerBalanceAnimation();
     setView('Earn');
@@ -813,7 +845,6 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-[100dvh] overflow-hidden relative">
       
-      {/* ✅ UPDATED: Beautiful Day/Night Compliant Glowing Notification (Lasts 10 Seconds) */}
       {showLevelAlert && (
           <div className="absolute top-[80px] left-4 right-4 z-[100] pointer-events-auto">
              <div className={`bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-${theme}-400 dark:border-${theme}-500/80 shadow-[0_0_25px_0px_var(--tw-shadow-color)] shadow-${theme}-400/50 dark:shadow-${theme}-500/40 p-4 rounded-2xl flex items-center gap-3 animate-slide-down-fade`}>
