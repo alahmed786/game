@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-// Assumption: The image is placed in the public/assets folder or similar path accessible by the app.
-// Adjust the path below if necessary based on your project structure.
-const ALIEN_EMBLEM_SRC = "image_9.png"; 
+// ✅ FIX: Absolute path tells the app to look inside the 'public' folder.
+const ALIEN_EMBLEM_SRC = "/alien.png"; 
 
 const MESSAGES = [
   "INITIALIZING QUANTUM UPLINK...",
@@ -89,11 +88,11 @@ const IntroScreen: React.FC<IntroScreenProps> = ({ onFinished, isDataReady, isDa
           
           {/* Holographic Scanner / New Realistic Alien Emblem */}
           <div className="relative mb-12 flex items-center justify-center">
-              {/* Outer Rings animation remaining */}
+              {/* Outer Rings */}
               <div className={`absolute w-64 h-64 rounded-full border-2 border-dashed animate-[spin_15s_linear_infinite] ${isDarkMode ? 'border-cyan-500/10' : 'border-cyan-500/20'}`}></div>
               <div className={`absolute w-56 h-56 rounded-full border border-t-cyan-500/50 border-r-transparent border-b-transparent border-l-transparent animate-[spin_4s_linear_infinite]`}></div>
               
-              {/* ✅ NEW: The realistic alien image instead of the emoji */}
+              {/* Alien Image */}
               <div className="relative z-10 animate-pulse">
                  <img 
                     src={ALIEN_EMBLEM_SRC} 
