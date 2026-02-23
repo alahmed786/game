@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { View, Theme } from '../types';
 
@@ -34,65 +33,66 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange, them
   return (
     <>
       <style>{`
-        @keyframes float-icon {
-            0%, 100% { transform: translateY(0px) scale(1.2); }
-            50% { transform: translateY(-3px) scale(1.2); }
+        @keyframes subtle-bounce {
+            0%, 100% { transform: translateY(0px) scale(1.1); }
+            50% { transform: translateY(-2px) scale(1.1); }
         }
-        .animate-float-icon {
-            animation: float-icon 2s ease-in-out infinite;
+        .animate-subtle-bounce {
+            animation: subtle-bounce 2.5s ease-in-out infinite;
         }
       `}</style>
 
-      {/* Gradient Blur Overlay */}
-      <div className="fixed bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-white via-white/90 to-transparent dark:from-[#030712] dark:via-[#030712]/90 dark:to-transparent pointer-events-none z-30 backdrop-blur-[1px]" />
+      {/* Subtle Gradient Overlay to blend the bottom edge */}
+      <div className="fixed bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white/60 dark:from-[#030712]/80 to-transparent pointer-events-none z-30" />
 
-      {/* Floating Glass Dock */}
-      <nav className={`fixed bottom-6 left-4 right-4 bg-white/85 dark:bg-slate-950/80 backdrop-blur-2xl dark:backdrop-blur-xl border-2 dark:border border-${theme}-500/40 dark:border-white/10 shadow-[0_0_30px_rgba(var(--bg-primary),0.8)] dark:shadow-lg rounded-[2rem] z-50 h-20 overflow-hidden transition-all duration-300`}>
+      {/* 100% Glassmorphic Floating Dock */}
+      <nav className="fixed bottom-4 left-4 right-4 z-50 h-16 rounded-2xl bg-white/20 dark:bg-[#0f172a]/30 backdrop-blur-3xl border border-white/50 dark:border-slate-700/50 shadow-[0_8px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] flex items-center overflow-hidden transition-all duration-500">
         
-        {/* Animated Background Highlight */}
-        <div className="absolute inset-0 p-2 pointer-events-none">
+        {/* Sleek Sliding Glass Highlight */}
+        <div className="absolute inset-0 pointer-events-none">
             <div 
-                className="h-full w-1/5 transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                className="h-full w-1/5 transition-transform duration-400 ease-[cubic-bezier(0.3,0,0.1,1)] p-1.5"
                 style={{ transform: `translateX(${activeIndex * 100}%)` }}
             >
-                {/* Main Glow Blob */}
-                <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-${theme}-400/50 dark:bg-${theme}-500/40 rounded-full blur-xl`}></div>
-                <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-${theme}-300/40 dark:bg-${theme}-500/30 rounded-full blur-md`}></div>
-                <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-${theme}-500/80 dark:bg-${theme}-400/80 rounded-t-full blur-[2px]`}></div>
+                {/* Inner Frosted Pill */}
+                <div className={`w-full h-full rounded-xl bg-white/40 dark:bg-white/10 border border-white/60 dark:border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] relative overflow-hidden`}>
+                    {/* Glowing Theme Indicator Line at the bottom */}
+                    <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-[3px] rounded-t-md bg-${theme}-400 dark:bg-${theme}-500 shadow-[0_0_10px_currentColor]`}></div>
+                </div>
             </div>
         </div>
 
         {/* Tab Buttons Grid */}
-        <div className="relative w-full h-full grid grid-cols-5">
+        <div className="relative w-full h-full grid grid-cols-5 z-10">
             {tabs.map((tab) => {
             const isActive = currentView === tab.id;
             return (
                 <button
                     key={tab.id}
                     onClick={() => onViewChange(tab.id)}
-                    className="relative flex items-center justify-center h-full outline-none group rounded-[1.5rem] active:scale-95 transition-transform duration-100"
+                    className="relative flex flex-col items-center justify-center h-full outline-none group rounded-xl active:scale-90 transition-transform duration-200"
                 >
                     {/* Icon Container */}
-                    <div className={`relative z-10 transition-all duration-300 flex items-center justify-center ${isActive ? '-translate-y-2' : 'translate-y-0'}`}>
+                    <div className={`relative transition-all duration-400 flex items-center justify-center ${isActive ? '-translate-y-1.5' : 'translate-y-0.5'}`}>
                         <span 
-                            className={`text-2xl transition-all duration-300 block select-none transform ${isActive ? 'animate-float-icon' : ''}`}
+                            className={`text-[22px] transition-all duration-400 block select-none transform ${isActive ? 'animate-subtle-bounce' : ''}`}
                             style={{
                                 filter: isActive 
-                                    ? `drop-shadow(0 0 8px ${glowColor}) drop-shadow(0 0 16px ${glowColor}) brightness(1.2)` 
-                                    : 'grayscale(0) brightness(1)', 
-                                opacity: isActive ? 1 : 0.7, 
-                                transform: isActive ? 'scale(1.2)' : 'scale(1)',
+                                    ? `drop-shadow(0 0 6px ${glowColor}) brightness(1.1)` 
+                                    : 'grayscale(0.4) brightness(0.9)', 
+                                opacity: isActive ? 1 : 0.6, 
+                                transform: isActive ? 'scale(1.1)' : 'scale(0.9)',
                             }}
                         >
                             {tab.icon}
                         </span>
                     </div>
                     
-                    {/* Label - Absolute Positioned to not affect Icon centering when hidden */}
-                    <span className={`absolute bottom-3 z-10 text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${
+                    {/* Label - Absolute Positioned below icon */}
+                    <span className={`absolute bottom-2 text-[9px] font-bold uppercase tracking-widest transition-all duration-400 ${
                         isActive 
-                        ? `text-${theme}-600 dark:text-${theme}-300 opacity-100 translate-y-0 drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]` 
-                        : 'text-slate-500 opacity-0 translate-y-2'
+                        ? `text-slate-800 dark:text-white opacity-100 translate-y-0` 
+                        : 'text-slate-500 opacity-0 translate-y-2 scale-75'
                     }`}>
                         {tab.label}
                     </span>
