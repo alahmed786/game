@@ -8,15 +8,14 @@ const AdminView: React.FC<AdminViewProps> = ({
   config, setConfig, tasks, setTasks, stellarDeals, setStellarDeals, 
   upgrades, setUpgrades, withdrawals, setWithdrawals, players, setPlayers, dailyRewards, setDailyRewards, onBack
 }) => {
-  // ✅ Added 'system' tab
   const [tab, setTab] = useState<'config' | 'missions' | 'fleet' | 'finance' | 'users' | 'ads' | 'system' | 'debug'>('config');
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
-  // Demo Mode temporary test inputs
-  const [demoStars, setDemoStars] = useState(100);
-  const [demoLevel, setDemoLevel] = useState(1);
+  // Demo / Cheat Controls State
+  const [demoTargetId, setDemoTargetId] = useState("");
+  const [demoAmount, setDemoAmount] = useState<number>(1000);
   const [maintenanceHoursInput, setMaintenanceHoursInput] = useState<number>(24);
 
   useEffect(() => {
@@ -229,21 +228,47 @@ const AdminView: React.FC<AdminViewProps> = ({
       }
   };
 
-  // ✅ NEW: Maintenance Toggle Handler
+  // ✅ FIX: Correct logic for toggling maintenance mode locally
   const toggleMaintenance = () => {
       if (config.maintenanceMode) {
-          // Turn off
           setConfig(prev => ({ ...prev, maintenanceMode: false, maintenanceEndTime: null }));
       } else {
-          // Turn on with specified hours
           const endTime = Date.now() + (maintenanceHoursInput * 3600000);
           setConfig(prev => ({ ...prev, maintenanceMode: true, maintenanceEndTime: endTime }));
       }
   };
 
-  // ✅ NEW: Apply Cheat Stats for testing
-  const applyDemoStats = () => {
-       alert(`Testing controls are active on the main app side. When Demo Mode is ON, ads are bypassed.`);
+  // ✅ FIX: Actual functional logic to inject stats into the database instantly
+  const applyDemoStat = async (type: 'stars' | 'balance' | 'level') => {
+       if (!demoTargetId) return alert("❌ Please enter a Target Telegram ID.");
+       if (isNaN(demoAmount)) return alert("❌ Invalid Amount.");
+
+       const target = players.find(p => p.telegramId === demoTargetId);
+       if (!target) return alert("❌ User not found in database.");
+
+       let newStars = target.stars;
+       let newBalance = target.balance;
+       let newLevel = target.level;
+
+       if (type === 'stars') newStars += demoAmount;
+       if (type === 'balance') newBalance += demoAmount;
+       if (type === 'level') newLevel = demoAmount;
+
+       try {
+           const { error } = await supabase
+               .from('players')
+               .update({ stars: newStars, balance: newBalance, level: newLevel })
+               .eq('telegramid', demoTargetId);
+
+           if (error) throw error;
+
+           // Update local UI state
+           setPlayers(prev => prev.map(p => p.telegramId === demoTargetId ? { ...p, stars: newStars, balance: newBalance, level: newLevel } : p));
+           alert(`✅ Successfully updated ${type} for user ${demoTargetId}!`);
+       } catch (err) {
+           console.error(err);
+           alert("❌ Failed to update database.");
+       }
   };
 
   return (
@@ -260,7 +285,7 @@ const AdminView: React.FC<AdminViewProps> = ({
             <button 
                 onClick={handleSaveToBackend} 
                 disabled={isSaving}
-                className={`px-4 py-2 rounded text-xs font-bold uppercase transition-all ${saveStatus === 'Success!' ? 'bg-green-600 text-white' : saveStatus === 'Failed! Check Console.' ? 'bg-red-600 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}
+                className={`px-4 py-2 rounded text-xs font-bold uppercase transition-all shadow-[0_0_15px_currentColor] ${saveStatus === 'Success!' ? 'bg-green-600 text-white' : saveStatus === 'Failed! Check Console.' ? 'bg-red-600 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}
             >
                 {isSaving ? 'Saving...' : saveStatus || 'SAVE CHANGES'}
             </button>
@@ -268,8 +293,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         </div>
       </div>
 
-      <div className="flex overflow-x-auto border-b border-slate-800 bg-slate-950 sticky top-[73px] z-40">
-        {/* ✅ Added 'system' to tabs array */}
+      <div className="flex overflow-x-auto border-b border-slate-800 bg-slate-950 sticky top-[73px] z-40 hide-scrollbar">
         {['config', 'missions', 'fleet', 'ads', 'finance', 'users', 'system', 'debug'].map(t => (
             <button 
                 key={t} 
@@ -287,9 +311,13 @@ const AdminView: React.FC<AdminViewProps> = ({
         {tab === 'system' && (
              <div className="grid gap-6">
                 
+                <div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-xl text-blue-400 text-xs font-bold uppercase tracking-widest text-center animate-pulse">
+                    ⚠️ Don't forget to click "SAVE CHANGES" at the top after toggling modes!
+                </div>
+
                 {/* MAINTENANCE MODE */}
                 <div className="bg-slate-900 p-6 rounded-xl border border-orange-900/50">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-4 mb-4 gap-4">
                         <div>
                             <h2 className="text-orange-400 font-bold uppercase tracking-widest text-lg flex items-center gap-2">
                                 🚧 Maintenance Mode
@@ -298,28 +326,28 @@ const AdminView: React.FC<AdminViewProps> = ({
                         </div>
                         <button 
                             onClick={toggleMaintenance}
-                            className={`px-6 py-2 rounded font-bold uppercase tracking-widest text-xs border ${config.maintenanceMode ? 'bg-red-600/20 text-red-500 border-red-500 hover:bg-red-600/30' : 'bg-orange-600/20 text-orange-500 border-orange-500 hover:bg-orange-600/30'}`}
+                            className={`px-6 py-3 rounded font-black uppercase tracking-widest text-[10px] border w-full sm:w-auto shadow-lg active:scale-95 transition-all ${config.maintenanceMode ? 'bg-red-600/20 text-red-500 border-red-500 hover:bg-red-600/30' : 'bg-orange-600/20 text-orange-500 border-orange-500 hover:bg-orange-600/30'}`}
                         >
                             {config.maintenanceMode ? 'TURN OFF MAINTENANCE' : 'ACTIVATE MAINTENANCE'}
                         </button>
                     </div>
 
                     {!config.maintenanceMode && (
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                             <label className="text-xs text-slate-400 font-bold uppercase">Duration (Hours):</label>
                             <input 
                                 type="number" 
                                 value={maintenanceHoursInput} 
                                 onChange={(e) => setMaintenanceHoursInput(Number(e.target.value))} 
-                                className="bg-black border border-slate-700 p-2 rounded text-orange-400 font-bold w-24" 
+                                className="bg-black border border-slate-700 p-3 rounded text-orange-400 font-bold w-full sm:w-24 text-center" 
                             />
                         </div>
                     )}
 
                     {config.maintenanceMode && config.maintenanceEndTime && (
                         <div className="mt-4 p-4 bg-red-950/30 border border-red-900/50 rounded-lg">
-                            <p className="text-red-400 text-xs font-bold uppercase">App is currently offline.</p>
-                            <p className="text-sm mt-1 text-white">Scheduled to end: {new Date(config.maintenanceEndTime).toLocaleString()}</p>
+                            <p className="text-red-400 text-xs font-bold uppercase animate-pulse">App is currently Offline.</p>
+                            <p className="text-sm mt-1 text-white">Scheduled to end: <span className="text-orange-400">{new Date(config.maintenanceEndTime).toLocaleString()}</span></p>
                             <p className="text-[10px] text-slate-500 mt-2">Note: The app will automatically open when the timer finishes, or you can turn it off manually above.</p>
                         </div>
                     )}
@@ -327,16 +355,16 @@ const AdminView: React.FC<AdminViewProps> = ({
 
                 {/* DEMO / TESTING MODE */}
                 <div className="bg-slate-900 p-6 rounded-xl border border-purple-900/50">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-4 mb-4 gap-4">
                         <div>
                             <h2 className="text-purple-400 font-bold uppercase tracking-widest text-lg flex items-center gap-2">
                                 🧪 Demo / Testing Mode
                             </h2>
-                            <p className="text-[10px] text-slate-500 mt-1">Bypasses real ad networks for instant rewards. Ideal for Apple/Google App Reviewers.</p>
+                            <p className="text-[10px] text-slate-500 mt-1">Bypasses real ad networks for instant rewards.</p>
                         </div>
                         <button 
                             onClick={() => handleConfigChange('demoMode', !config.demoMode)}
-                            className={`px-6 py-2 rounded font-bold uppercase tracking-widest text-xs border ${config.demoMode ? 'bg-red-600/20 text-red-500 border-red-500 hover:bg-red-600/30' : 'bg-purple-600/20 text-purple-500 border-purple-500 hover:bg-purple-600/30'}`}
+                            className={`px-6 py-3 rounded font-black uppercase tracking-widest text-[10px] border w-full sm:w-auto shadow-lg active:scale-95 transition-all ${config.demoMode ? 'bg-red-600/20 text-red-500 border-red-500 hover:bg-red-600/30' : 'bg-purple-600/20 text-purple-500 border-purple-500 hover:bg-purple-600/30'}`}
                         >
                             {config.demoMode ? 'TURN OFF DEMO MODE' : 'ACTIVATE DEMO MODE'}
                         </button>
@@ -344,25 +372,37 @@ const AdminView: React.FC<AdminViewProps> = ({
 
                     {config.demoMode && (
                         <div className="mt-4 p-4 bg-purple-950/30 border border-purple-900/50 rounded-lg flex flex-col gap-4">
-                            <p className="text-purple-400 text-xs font-bold uppercase">Demo Mode is ACTIVE.</p>
-                            <p className="text-[10px] text-slate-400">All "Watch Ad" buttons will instantly grant rewards without showing video ads. This prevents ad network bans during intense testing.</p>
+                            <p className="text-purple-400 text-xs font-bold uppercase animate-pulse">Demo Mode is ACTIVE.</p>
+                            <p className="text-[10px] text-slate-400 leading-relaxed">All "Watch Ad" buttons will instantly grant rewards without showing video ads. This prevents ad network bans during intense testing.</p>
                             
-                            <div className="grid grid-cols-2 gap-4 mt-2">
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] text-slate-500 uppercase font-bold">Inject Test Stars</label>
-                                    <div className="flex gap-2">
-                                        <input type="number" value={demoStars} onChange={(e) => setDemoStars(Number(e.target.value))} className="bg-black border border-slate-700 p-2 rounded text-yellow-400 font-bold flex-1" />
-                                        <button onClick={applyDemoStats} className="bg-slate-800 px-3 py-2 rounded border border-slate-700 text-xs font-bold text-yellow-500">ADD</button>
-                                    </div>
+                            {/* ✅ FIX: Fully responsive UI for testing tools */}
+                            <div className="flex flex-col gap-3 mt-4 border-t border-purple-900/30 pt-4">
+                                <p className="text-[10px] text-purple-300 font-bold uppercase tracking-widest">Inject Resources to User Database</p>
+                                
+                                <div className="flex flex-col gap-2">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Enter Target Telegram ID" 
+                                        value={demoTargetId} 
+                                        onChange={(e) => setDemoTargetId(e.target.value)} 
+                                        className="bg-black border border-slate-700 p-3 rounded text-xs text-white w-full"
+                                    />
+                                    <input 
+                                        type="number" 
+                                        placeholder="Enter Amount" 
+                                        value={demoAmount} 
+                                        onChange={(e) => setDemoAmount(Number(e.target.value))} 
+                                        className="bg-black border border-slate-700 p-3 rounded text-xs text-white w-full"
+                                    />
                                 </div>
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] text-slate-500 uppercase font-bold">Force Level Up/Down</label>
-                                    <div className="flex gap-2">
-                                        <input type="number" value={demoLevel} onChange={(e) => setDemoLevel(Number(e.target.value))} className="bg-black border border-slate-700 p-2 rounded text-cyan-400 font-bold flex-1" />
-                                        <button onClick={applyDemoStats} className="bg-slate-800 px-3 py-2 rounded border border-slate-700 text-xs font-bold text-cyan-500">SET</button>
-                                    </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                                    <button onClick={() => applyDemoStat('balance')} className="bg-slate-800 hover:bg-slate-700 py-3 rounded border border-slate-700 text-[10px] font-black text-cyan-400 uppercase active:scale-95 transition-transform">Add Balance</button>
+                                    <button onClick={() => applyDemoStat('stars')} className="bg-slate-800 hover:bg-slate-700 py-3 rounded border border-slate-700 text-[10px] font-black text-yellow-400 uppercase active:scale-95 transition-transform">Add Stars</button>
+                                    <button onClick={() => applyDemoStat('level')} className="bg-slate-800 hover:bg-slate-700 py-3 rounded border border-slate-700 text-[10px] font-black text-emerald-400 uppercase active:scale-95 transition-transform">Set Level</button>
                                 </div>
                             </div>
+
                         </div>
                     )}
                 </div>
