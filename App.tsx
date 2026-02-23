@@ -28,6 +28,52 @@ declare global {
 
 const ADMIN_ID = "702954043";
 
+// ✅ NEW: Maintenance Screen Component
+const MaintenanceScreen: React.FC<{ endTime: number; onFinished: () => void; isDarkMode: boolean }> = ({ endTime, onFinished, isDarkMode }) => {
+  const [timeLeft, setTimeLeft] = useState("");
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const diff = endTime - now;
+      if (diff <= 0) {
+        clearInterval(timer);
+        onFinished();
+      } else {
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        setTimeLeft(`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [endTime, onFinished]);
+
+  return (
+    <div className={`fixed inset-0 z-[1000] flex flex-col items-center justify-center p-6 text-center ${isDarkMode ? 'bg-[#050B14] text-white' : 'bg-slate-50 text-slate-900'}`}>
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none"></div>
+      <div className="absolute top-1/4 w-64 h-64 bg-orange-500/20 rounded-full blur-[100px] animate-pulse"></div>
+      
+      <div className="relative z-10 flex flex-col items-center">
+        <div className="w-24 h-24 bg-orange-500/10 border border-orange-500/30 rounded-2xl flex items-center justify-center mb-6 animate-bounce shadow-[0_0_30px_rgba(249,115,22,0.2)]">
+            <span className="text-5xl">🚧</span>
+        </div>
+        <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 uppercase tracking-widest mb-3">System Offline</h1>
+        <p className={`text-sm mb-8 max-w-xs leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+           Our engineers are currently upgrading the quantum mainframe. Access will be automatically restored when the timer concludes.
+        </p>
+        
+        <div className="flex flex-col items-center">
+            <span className={`text-[10px] font-bold uppercase tracking-[0.3em] mb-2 ${isDarkMode ? 'text-orange-500/70' : 'text-orange-600/70'}`}>Uplink Resumes In</span>
+            <div className={`px-8 py-4 rounded-xl font-mono text-3xl font-black tracking-wider shadow-inner ${isDarkMode ? 'bg-black/50 border border-orange-500/30 text-orange-400' : 'bg-orange-50 border border-orange-200 text-orange-600'}`}>
+                {timeLeft || "00:00:00"}
+            </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const [showIntro, setShowIntro] = useState(true);
   const [view, setView] = useState<View>('Earn');
@@ -101,7 +147,15 @@ const App: React.FC = () => {
     });
   };
 
+  // ✅ UPDATED: Demo Mode Ad Bypass Logic
   const handleShowAd = (onComplete: () => void, onError: (msg: string) => void) => {
+     if (adminConfig.demoMode) {
+         console.log("[DEMO MODE] Bypassing Ad Network...");
+         setTimeout(() => {
+             onComplete();
+         }, 500); // Simulate brief loading
+         return;
+     }
      showAd(adminConfig.adUnits, onComplete, onError);
   };
 
@@ -126,12 +180,15 @@ const App: React.FC = () => {
               return [...filtered, mappedPlayer].sort((a, b) => b.balance - a.balance);
            });
 
+           // ✅ UPDATED: Pull in real-time Level & Balance changes for Demo Cheat Panel
            setPlayer(prev => {
                 if (prev && prev.telegramId === newPlayer.telegramid) {
                     return {
                         ...prev,
                         referralCount: newPlayer.referralcount,
                         stars: newPlayer.stars,
+                        level: newPlayer.level,
+                        balance: newPlayer.balance
                     };
                 }
                 return prev;
@@ -266,7 +323,6 @@ const App: React.FC = () => {
                     }
                 }
 
-                // ✅ NEW: Daily Cipher Midnight Reset Logic
                 // @ts-ignore
                 if (parsedPlayer.lastCipherClaimed) {
                     // @ts-ignore
@@ -352,7 +408,6 @@ const App: React.FC = () => {
     setTimeout(() => setAnimateBalance(false), 500); 
   };
 
-  // ✅ Active Check for Midnight Resets while the app is open
   useEffect(() => {
       const checkMidnightReset = () => {
           if (!player) return;
@@ -367,7 +422,7 @@ const App: React.FC = () => {
           }
       };
       
-      const interval = setInterval(checkMidnightReset, 60000); // Check every minute
+      const interval = setInterval(checkMidnightReset, 60000); 
       checkMidnightReset();
       return () => clearInterval(interval);
   }, [player?.dailyCipherClaimed]);
@@ -607,7 +662,6 @@ const App: React.FC = () => {
     savePlayerToSupabase(updatedPlayer, upgradesRef.current);
   };
   
-  // ✅ UPDATED: Add the Timestamp!
   const handleSolveCipher = () => {
     if (!player || player.dailyCipherClaimed) return;
     
@@ -615,7 +669,7 @@ const App: React.FC = () => {
         ...player, 
         balance: player.balance + adminConfig.dailyCipherReward, 
         dailyCipherClaimed: true,
-        // @ts-ignore - Explicitly storing exactly when they cracked it
+        // @ts-ignore
         lastCipherClaimed: Date.now() 
     } as any;
     
@@ -729,6 +783,21 @@ const App: React.FC = () => {
   if (showIntro) return <IntroScreen isDataReady={!!player} onFinished={() => setShowIntro(false)} isDarkMode={isDarkMode} />;
   if (!player) return <div className="flex h-screen items-center justify-center text-cyan-400 font-bold animate-pulse">RE-ESTABLISHING UPLINK...</div>;
   if (player.isBanned) return <div className="fixed inset-0 bg-red-950 flex flex-col items-center justify-center p-6 text-center z-[1000]"><span className="text-6xl mb-4">🚫</span><h1 className="text-3xl font-black text-red-500 uppercase tracking-widest mb-2">ACCESS DENIED</h1></div>;
+
+  // ✅ NEW: Maintenance Screen Logic Execution
+  const isMaintenanceActive = adminConfig.maintenanceMode && 
+                              adminConfig.maintenanceEndTime && 
+                              Date.now() < adminConfig.maintenanceEndTime;
+
+  if (isMaintenanceActive && player.telegramId !== ADMIN_ID) {
+      return (
+          <MaintenanceScreen 
+              endTime={adminConfig.maintenanceEndTime as number} 
+              isDarkMode={isDarkMode}
+              onFinished={() => setAdminConfig(prev => ({ ...prev, maintenanceMode: false }))} 
+          />
+      );
+  }
 
   const isRewardAvailable = !player.lastRewardClaimed || Date.now() - player.lastRewardClaimed > 86400000;
   
@@ -845,6 +914,13 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-[100dvh] overflow-hidden relative">
       
+      {/* ✅ NEW: Global Demo Mode Visual Indicator */}
+      {adminConfig.demoMode && (
+          <div className="fixed top-2 left-1/2 -translate-x-1/2 z-[1000] bg-purple-600/90 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.5)] pointer-events-none animate-pulse">
+            Demo Mode Active
+          </div>
+      )}
+
       {showLevelAlert && (
           <div className="absolute top-[80px] left-4 right-4 z-[100] pointer-events-auto">
              <div className={`bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-${theme}-400 dark:border-${theme}-500/80 shadow-[0_0_25px_0px_var(--tw-shadow-color)] shadow-${theme}-400/50 dark:shadow-${theme}-500/40 p-4 rounded-2xl flex items-center gap-3 animate-slide-down-fade`}>
