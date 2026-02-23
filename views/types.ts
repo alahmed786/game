@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 export type ActiveBoost = {
@@ -127,9 +126,13 @@ export interface AdminConfig {
   dailyCipherWord: string;
   minWithdrawalTon: number;
   referralRewardStars: number;
-  dailyRewardBase: number; // Base multiplier for rewards
-  dailyCipherReward: number; // Reward for solving cipher
-  adUnits: AdUnit[]; // New: Manage Ad IDs
+  dailyRewardBase: number; 
+  dailyCipherReward: number; 
+  adUnits: AdUnit[]; 
+  // ✅ NEW ADDITIONS FOR MAINTENANCE & DEMO MODE
+  maintenanceMode: boolean;
+  maintenanceEndTime: number | null; // Unix timestamp for countdown
+  demoMode: boolean; // Enables test balance/levels, bypasses real ads
 }
 
 export interface EarnViewProps {
@@ -150,6 +153,8 @@ export interface EarnViewProps {
   isCipherClaimed: boolean;
   theme: Theme;
   onShowAd: (onComplete: () => void, onError: (msg: string) => void) => void;
+  isDarkMode: boolean; // Added from recent updates
+  toggleTheme: () => void; // Added from recent updates
 }
 
 export interface Task {
@@ -160,7 +165,9 @@ export interface Task {
   type: 'telegram' | 'youtube_video' | 'youtube_shorts' | 'ads';
   dailyLimit?: number;
   link?: string;
-  secretCode?: string; // Admin can set this
+  secretCode?: string; 
+  chatId?: string; // Added from recent updates
+  expiresAt?: string; // Added from recent updates
 }
 
 export interface TasksViewProps {
@@ -168,10 +175,10 @@ export interface TasksViewProps {
   onInitiateTask: (task: Task) => void;
   onClaimTask: (taskId: string, code: string) => boolean;
   onCancelTask: (taskId: string) => void;
-  onWatchLevelUpAd: () => void; // New prop for level up ads
+  onWatchLevelUpAd: () => void; 
   pendingTasks: string[];
   theme: Theme;
-  tasks: Task[]; // Dynamic tasks
+  tasks: Task[]; 
   onShowAd: (onComplete: () => void, onError: (msg: string) => void) => void;
 }
 
@@ -185,7 +192,7 @@ export interface UpgradesViewProps {
   onConfirmDealAd: () => void;
   onCancelDealAd: () => void;
   theme: Theme;
-  stellarDeals: StellarDeal[]; // Dynamic deals
+  stellarDeals: StellarDeal[]; 
   onShowAd: (onComplete: () => void, onError: (msg: string) => void) => void;
 }
 
@@ -195,7 +202,7 @@ export interface DailyRewardViewProps {
   onBack: () => void;
   isRewardAvailable: boolean;
   theme: Theme;
-  rewards: DailyReward[]; // Dynamic rewards
+  rewards: DailyReward[]; 
 }
 
 export interface DailyCipherViewProps {
@@ -203,7 +210,7 @@ export interface DailyCipherViewProps {
   onBack: () => void;
   isCipherClaimed: boolean;
   theme: Theme;
-  cipherWord: string; // Dynamic word
+  cipherWord: string; 
 }
 
 export interface LeaderboardViewProps {
@@ -211,14 +218,14 @@ export interface LeaderboardViewProps {
   theme: Theme;
   referralReward: number; 
   leaderboardData?: Player[];
-  userRank: number; // New: Global rank for current user
+  userRank: number; 
 }
 
 export interface WalletViewProps {
   player: Player;
   onWithdraw: (withdrawal: Omit<Withdrawal, 'id' | 'timestamp' | 'status' | 'telegramId' | 'username'>) => void;
   theme: Theme;
-  minWithdrawal: number; // Dynamic
+  minWithdrawal: number; 
   onShowAd: (onComplete: () => void, onError: (msg: string) => void) => void;
 }
 
@@ -233,8 +240,8 @@ export interface AdminViewProps {
   setUpgrades: React.Dispatch<React.SetStateAction<Upgrade[]>>;
   withdrawals: Withdrawal[];
   setWithdrawals: React.Dispatch<React.SetStateAction<Withdrawal[]>>;
-  players: Player[]; // Simulated global player list
-  setPlayers: React.Dispatch<React.SetStateAction<Player[]>>; // To ban/unban
+  players: Player[]; 
+  setPlayers: React.Dispatch<React.SetStateAction<Player[]>>; 
   dailyRewards: DailyReward[];
   setDailyRewards: React.Dispatch<React.SetStateAction<DailyReward[]>>;
   onBack: () => void;
