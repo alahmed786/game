@@ -80,26 +80,21 @@ const IntroScreen: React.FC<IntroScreenProps> = ({ onFinished, isDataReady, isDa
        
        {isDarkMode && <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#000_100%)] opacity-70 pointer-events-none"></div>}
        
-       {/* --- FOREGROUND CONTENT --- */}
-
-       <div className="relative z-20 flex flex-col items-center justify-center w-full max-w-sm px-8">
+       {/* --- DEAD CENTER CONTENT (Logo & Title) --- */}
+       <div className="relative z-20 flex flex-col items-center justify-center w-full max-w-sm px-8 -mt-16">
           
-          {/* Holographic Scanner / New Logo */}
-          <div className="relative mb-16 mt-8 flex items-center justify-center">
+          {/* Holographic Scanner / Retro Alien Logo */}
+          <div className="relative mb-16 flex items-center justify-center">
               {/* Outer Rings */}
               <div className={`absolute w-56 h-56 rounded-full border-2 border-dashed animate-[spin_15s_linear_infinite] ${isDarkMode ? 'border-cyan-500/20' : 'border-cyan-500/30'}`}></div>
               <div className={`absolute w-48 h-48 rounded-full border border-t-cyan-500 border-r-transparent border-b-transparent border-l-transparent animate-[spin_3s_linear_infinite]`}></div>
               <div className="absolute w-40 h-40 rounded-full border border-indigo-500/50 animate-[spin_8s_linear_infinite_reverse]"></div>
               
-              {/* Core Gem */}
+              {/* Core Gem with Alien Emoji */}
               <div className={`relative w-28 h-28 rounded-3xl rotate-45 flex items-center justify-center backdrop-blur-md shadow-[0_0_40px_rgba(6,182,212,0.3)] ${isDarkMode ? 'bg-slate-900/40 border border-cyan-400/30' : 'bg-white/60 border border-cyan-500/30'}`}>
-                  {/* Inner SVG Icon */}
-                  <div className="-rotate-45 text-cyan-400 drop-shadow-[0_0_15px_rgba(6,182,212,0.8)] animate-pulse">
-                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M12 2L2 12L12 22L22 12L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                          <path d="M12 6L6 12L12 18L18 12L12 6Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                          <circle cx="12" cy="12" r="2" fill="currentColor"/>
-                      </svg>
+                  {/* The Emoji rotated back to stand upright */}
+                  <div className="-rotate-45 text-6xl drop-shadow-[0_0_15px_rgba(6,182,212,0.8)] animate-pulse">
+                      👾
                   </div>
                   
                   {/* Scanner Line */}
@@ -108,12 +103,17 @@ const IntroScreen: React.FC<IntroScreenProps> = ({ onFinished, isDataReady, isDa
           </div>
 
           {/* Title */}
-          <h1 className={`text-4xl font-black tracking-[0.25em] uppercase mb-12 text-center drop-shadow-lg leading-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+          <h1 className={`text-4xl font-black tracking-[0.25em] uppercase text-center drop-shadow-lg leading-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             Alien<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500">Overlord</span>
           </h1>
 
+       </div>
+
+       {/* --- BOTTOM CONTENT (Loading Bar & Status) --- */}
+       <div className="absolute bottom-10 w-full max-w-sm px-8 flex flex-col gap-5 z-20">
+           
           {/* Status Message */}
-          <div className="h-12 flex flex-col items-center justify-center w-full mb-4">
+          <div className="flex flex-col items-center justify-center w-full">
             <div className="flex items-center gap-2 mb-2">
                  <div className={`w-2 h-2 rounded-full animate-ping ${isDataReady ? 'bg-emerald-400' : 'bg-amber-400'}`}></div>
                  <span className={`text-[10px] uppercase tracking-widest font-bold ${isDataReady ? 'text-emerald-500' : 'text-amber-500'}`}>
@@ -125,9 +125,7 @@ const IntroScreen: React.FC<IntroScreenProps> = ({ onFinished, isDataReady, isDa
             </p>
           </div>
 
-          {/* NEW LAYOUT: 
-              Loading Bar followed by Percentage and Version directly below it.
-          */}
+          {/* Loading Bar & Meta */}
           <div className="w-full flex flex-col gap-2">
               {/* Progress Bar Container */}
               <div className={`w-full h-1.5 rounded-full overflow-hidden relative shadow-inner ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'}`}>
@@ -144,7 +142,7 @@ const IntroScreen: React.FC<IntroScreenProps> = ({ onFinished, isDataReady, isDa
               {/* Footer Meta Details */}
               <div className={`flex justify-between items-center w-full text-[9px] font-mono uppercase tracking-widest ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
                   <span>V 1.0.5</span>
-                  <span className="font-bold text-cyan-500">{Math.floor(progress)}%</span>
+                  <span className="font-bold text-cyan-500 text-xs">{Math.floor(progress)}%</span>
                   <span>SECURE PROTOCOL</span>
               </div>
           </div>
