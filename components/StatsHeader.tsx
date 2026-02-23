@@ -1,104 +1,110 @@
 import React from 'react';
-import { Player, Theme } from '../types';
-import { LEVEL_BALANCE_REQUIREMENTS, getRankName } from '../constants';
+import { Player } from '../types';
+import { LEVEL_BALANCE_REQUIREMENTS } from '../constants';
+
+const RANKS = [
+  "Novice", "Space Cadet", "Explorer", "Commander", "Captain", 
+  "Admiral", "Warlord", "Conqueror", "Overlord", "Celestial"
+];
 
 interface StatsHeaderProps {
-  player: Player;
+  player: Player | null;
   animateBalance: boolean;
-  theme: Theme;
+  theme: string;
   onOpenAdmin?: () => void;
   showAdminLock?: boolean;
 }
 
 const StatsHeader: React.FC<StatsHeaderProps> = ({ player, animateBalance, theme, onOpenAdmin, showAdminLock }) => {
-  const currentLevel = player.level;
+  if (!player) return null;
+
+  const currentLevelIndex = Math.max(0, player.level - 1);
+  const rankName = RANKS[currentLevelIndex] || 'Galactic Legend';
   
-  // Logic: Calculate progress relative to the current level's bracket
-  const prevLevelReq = LEVEL_BALANCE_REQUIREMENTS[currentLevel - 1] || 0;
-  const nextLevelReq = LEVEL_BALANCE_REQUIREMENTS[currentLevel]; 
+  const nextLevelReq = LEVEL_BALANCE_REQUIREMENTS[player.level];
+  const prevLevelReq = player.level === 1 ? 0 : LEVEL_BALANCE_REQUIREMENTS[player.level - 1];
   
-  let progress = 0;
-  if (nextLevelReq === undefined) {
-     progress = 100;
-  } else {
-      const totalReq = nextLevelReq - prevLevelReq;
+  let progressPercent = 100;
+  if (nextLevelReq) {
+      const levelTotal = nextLevelReq - prevLevelReq;
       const currentProgress = player.balance - prevLevelReq;
-      
-      if (totalReq > 0) {
-        progress = (currentProgress / totalReq) * 100;
-      }
+      progressPercent = Math.min(100, Math.max(0, (currentProgress / levelTotal) * 100));
   }
 
-  // Cap at 0 and 100
-  const balanceProgress = Math.min(Math.max(progress, 0), 100);
-
   return (
-    <div className="pt-5 pb-3 px-4 flex flex-col gap-4 bg-transparent z-10 transition-colors duration-500">
-      <div className={`relative bg-white/70 dark:bg-black/40 backdrop-blur-xl rounded-2xl border flex flex-col transition-all duration-500 ease-out 
-        border-white/20 dark:border-white/10 shadow-xl`}>
+    <div className="w-full px-4 pt-4 pb-2 z-50 shrink-0">
+      {/* Sleek Glassmorphic Container */}
+      <div className={`relative w-full backdrop-blur-2xl bg-white/60 dark:bg-[#0f172a]/80 border border-white/50 dark:border-slate-800/80 rounded-2xl p-3 flex flex-col gap-3 shadow-[0_10px_30px_rgba(0,0,0,0.05)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.2)]`}>
         
-        {/* Top Content (Profile & Currencies) */}
-        <div className="px-4 py-3 flex items-center justify-between z-10">
-          {/* Profile Section */}
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="relative flex-shrink-0">
-              <img 
-                src={player.photoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${player.username}`} 
-                alt="Profile" 
-                className={`w-12 h-12 rounded-full border-2 border-${theme}-500/30 shadow-md`}
-              />
-              <div className={`absolute -bottom-1 -right-1 bg-white dark:bg-slate-950 text-${theme}-600 dark:text-${theme}-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-${theme}-500/30`}>
+        <div className="flex items-center justify-between">
+          
+          {/* Left: Profile & Level Section */}
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              {/* Gradient Avatar Border */}
+              <div className={`w-11 h-11 rounded-xl p-[1px] bg-gradient-to-br from-${theme}-400 to-purple-500 shadow-sm`}>
+                <img 
+                   src={player.photoUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${player.username}`} 
+                   alt="avatar" 
+                   className="w-full h-full rounded-[10px] bg-slate-100 dark:bg-slate-900 object-cover"
+                />
+              </div>
+              {/* Crisp Level Badge */}
+              <div className={`absolute -bottom-1.5 -right-1.5 w-5 h-5 flex items-center justify-center rounded-lg text-[9px] font-black text-white shadow-md border-[1.5px] border-white dark:border-[#0f172a] bg-gradient-to-br from-${theme}-400 to-${theme}-600`}>
                 {player.level}
               </div>
             </div>
-            
-            <div className="flex flex-col justify-center min-w-0">
-               <p className="font-bold text-slate-900 dark:text-white text-lg leading-tight flex items-center gap-2 truncate">
-                 <span className="truncate">{player.username}</span>
-                 {showAdminLock && (
-                    <button onClick={onOpenAdmin} className="opacity-50 hover:opacity-100 transition-opacity text-slate-500 dark:text-slate-400 flex-shrink-0">
-                        <span className="text-[10px]">🔒</span>
-                    </button>
-                 )}
-               </p>
-               <p className="text-[11px] text-slate-600 dark:text-slate-400 font-mono tracking-wide mt-0.5 uppercase truncate">
-                  {getRankName(player.level)}
-               </p>
+
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5">
+                <span className="font-black text-sm text-slate-900 dark:text-white tracking-wide max-w-[100px] truncate">
+                    {player.username}
+                </span>
+                {showAdminLock && (
+                   <button onClick={onOpenAdmin} className="text-yellow-500 text-xs drop-shadow-md hover:scale-110 transition-transform">
+                     👑
+                   </button>
+                )}
+              </div>
+              <span className={`text-[9px] font-bold uppercase tracking-[0.2em] text-${theme}-500 dark:text-${theme}-400`}>
+                {rankName}
+              </span>
             </div>
           </div>
 
-          {/* Currencies (Stars & Balance) */}
-          <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-             
-             {/* Stars Display */}
-             <div className="flex items-center gap-1.5 bg-yellow-500/10 dark:bg-yellow-500/20 px-2 py-0.5 rounded-md border border-yellow-500/20">
-               <span className="text-xs">⭐</span>
-               <span className="text-xs font-bold tracking-tight text-slate-900 dark:text-white">
-                 {player.stars.toLocaleString()}
-               </span>
-             </div>
-
-             {/* Stardust Display */}
-             <div className={`h-10 px-3 rounded-xl bg-white/50 dark:bg-black/60 border border-${theme}-600/40 dark:border-${theme}-500/50 shadow-[0_0_12px_rgba(6,182,212,0.15)] flex items-center justify-center gap-2 transition-all duration-300 ease-in-out backdrop-blur-sm ${animateBalance ? 'scale-105 border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)]' : ''}`}>
-                <span className="text-xl">🪐</span>
-                <span className="text-base font-black tracking-tight text-slate-900 dark:text-white font-mono">
-                  {player.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {/* Right: Balances Section */}
+          <div className="flex flex-col items-end gap-1.5">
+             {/* Primary Currency Pill */}
+             <div className={`flex items-center gap-2 bg-white/80 dark:bg-black/40 border border-slate-200 dark:border-white/5 px-3 py-1.5 rounded-xl shadow-sm ${animateBalance ? 'scale-110' : 'scale-100'} transition-transform duration-200`}>
+                <span className="text-lg drop-shadow-sm">🪐</span>
+                <span className={`font-mono font-black text-sm tracking-wider text-slate-900 dark:text-white ${animateBalance ? `text-${theme}-500 drop-shadow-[0_0_8px_rgba(var(--bg-primary),0.8)]` : ''}`}>
+                   {Math.floor(player.balance).toLocaleString()}
                 </span>
+             </div>
+             
+             {/* Premium Currency (Stars) */}
+             <div className="flex items-center gap-1 px-2 opacity-80">
+                 <span className="text-[10px]">⭐</span>
+                 <span className="font-mono text-[10px] font-bold text-yellow-600 dark:text-yellow-500">
+                     {player.stars.toLocaleString()}
+                 </span>
              </div>
           </div>
         </div>
 
-        {/* Level Progress Bar Area */}
-        <div className="px-4 pb-4 w-full">
-             <div className="w-full h-2 bg-slate-200/50 dark:bg-slate-900/80 rounded-full border border-white/40 dark:border-white/5 relative overflow-hidden">
-                 <div 
-                   className={`h-full bg-gradient-to-r from-${theme}-400 via-${theme}-500 to-white shadow-[0_0_10px_rgba(var(--theme-primary))] rounded-full transition-all duration-300 ease-out relative`} 
-                   style={{ width: `${balanceProgress}%` }}
-                 >
-                    <div className="absolute right-0 top-0 bottom-0 w-1 bg-white/60 shadow-[0_0_5px_white] rounded-full"></div>
-                 </div>
-             </div>
+        {/* Bottom: Ultra-Thin Progress Bar */}
+        <div className="w-full px-1">
+            <div className="w-full h-1.5 bg-slate-200/50 dark:bg-slate-800/50 rounded-full overflow-hidden border border-slate-200 dark:border-white/5">
+               <div 
+                 className={`h-full bg-gradient-to-r from-${theme}-400 via-${theme}-500 to-indigo-500 relative`}
+                 style={{ width: `${progressPercent}%`, transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}
+               >
+                 {/* Shiny Glint on the progress bar */}
+                 <div className="absolute top-0 right-0 bottom-0 w-4 bg-white/40 blur-[2px]"></div>
+               </div>
+            </div>
         </div>
+
       </div>
     </div>
   );
