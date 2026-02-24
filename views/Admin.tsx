@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Player, Task, Upgrade, StellarDeal, AdminConfig, Withdrawal, DailyReward, AdminViewProps, AdUnit, ErrorLog } from '../types';
 import { supabase, saveGameSettings, fetchAllPlayersAdmin } from '../utils/supabase';
+import { INITIAL_UPGRADES } from '../constants'; // ✅ IMPORT ADDED to fix the bug
 
 const TON_TO_INR_RATE = 640; 
 
@@ -13,7 +14,6 @@ const AdminView: React.FC<AdminViewProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
-  // Demo / Cheat Controls State
   const [demoTargetId, setDemoTargetId] = useState("");
   const [demoAmount, setDemoAmount] = useState<number>(1000);
   const [maintenanceHoursInput, setMaintenanceHoursInput] = useState<number>(24);
@@ -63,13 +63,16 @@ const AdminView: React.FC<AdminViewProps> = ({
       setIsSaving(true);
       setSaveStatus("Uploading...");
       try {
+          // ✅ FIX: NEVER save the Admin's personal 'upgrades' state to the global backend!
+          // We force it to use the clean INITIAL_UPGRADES so everyone starts at Level 0.
           const globalSettings = {
               adminConfig: config,
               tasks: tasks,
               stellarDeals: stellarDeals,
               dailyRewards: dailyRewards,
-              upgrades: upgrades
+              upgrades: INITIAL_UPGRADES 
           };
+          
           const success = await saveGameSettings(globalSettings);
           
           if (success) {
@@ -228,7 +231,6 @@ const AdminView: React.FC<AdminViewProps> = ({
       }
   };
 
-  // ✅ FIX: Correct logic for toggling maintenance mode locally
   const toggleMaintenance = () => {
       if (config.maintenanceMode) {
           setConfig(prev => ({ ...prev, maintenanceMode: false, maintenanceEndTime: null }));
@@ -238,7 +240,6 @@ const AdminView: React.FC<AdminViewProps> = ({
       }
   };
 
-  // ✅ FIX: Actual functional logic to inject stats into the database instantly
   const applyDemoStat = async (type: 'stars' | 'balance' | 'level') => {
        if (!demoTargetId) return alert("❌ Please enter a Target Telegram ID.");
        if (isNaN(demoAmount)) return alert("❌ Invalid Amount.");
@@ -262,7 +263,6 @@ const AdminView: React.FC<AdminViewProps> = ({
 
            if (error) throw error;
 
-           // Update local UI state
            setPlayers(prev => prev.map(p => p.telegramId === demoTargetId ? { ...p, stars: newStars, balance: newBalance, level: newLevel } : p));
            alert(`✅ Successfully updated ${type} for user ${demoTargetId}!`);
        } catch (err) {
@@ -307,7 +307,7 @@ const AdminView: React.FC<AdminViewProps> = ({
 
       <div className="p-6 max-w-4xl mx-auto pb-24">
         
-        {/* === NEW SYSTEM TAB === */}
+        {/* === SYSTEM TAB === */}
         {tab === 'system' && (
              <div className="grid gap-6">
                 
@@ -375,7 +375,6 @@ const AdminView: React.FC<AdminViewProps> = ({
                             <p className="text-purple-400 text-xs font-bold uppercase animate-pulse">Demo Mode is ACTIVE.</p>
                             <p className="text-[10px] text-slate-400 leading-relaxed">All "Watch Ad" buttons will instantly grant rewards without showing video ads. This prevents ad network bans during intense testing.</p>
                             
-                            {/* ✅ FIX: Fully responsive UI for testing tools */}
                             <div className="flex flex-col gap-3 mt-4 border-t border-purple-900/30 pt-4">
                                 <p className="text-[10px] text-purple-300 font-bold uppercase tracking-widest">Inject Resources to User Database</p>
                                 
@@ -657,7 +656,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                                 <img src={p.photoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${p.username}`} className="w-8 h-8 rounded-full bg-slate-800" alt="" />
                                 <div>
                                     <p className="font-bold text-sm">{p.username}</p>
-                                    <p className="text-[10px] text-slate-500">Bal: {p.balance.toLocaleString()} • Lvl: {p.level}</p>
+                                    <p className="text-[10px] text-slate-500">Bal: {Math.floor(p.balance).toLocaleString()} • Lvl: {p.level}</p>
                                 </div>
                             </div>
                             <button onClick={() => toggleBan(p.telegramId)} className={`px-3 py-1 rounded text-[10px] font-bold border ${p.isBanned ? 'bg-emerald-900 border-emerald-500 text-emerald-400' : 'bg-red-900 border-red-500 text-red-400'}`}>
