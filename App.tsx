@@ -112,14 +112,19 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
         { q: "What are Stars?", a: "Premium currency used to purchase elite Fleet Upgrades and special Stellar Deals." }
     ];
 
-    // ✅ FIX: HTTPS link to bypass Telegram mailto block
+    // ✅ FIX: Safely copy email to clipboard to avoid Telegram Webview URL scheme blocks
     const handleContactUs = () => {
-        const safeMailUrl = "https://mail.google.com/mail/?view=cm&fs=1&to=network.captchacash@gmail.com";
-        if (window.Telegram?.WebApp?.openLink) {
-            window.Telegram.WebApp.openLink(safeMailUrl);
-        } else {
-            window.open(safeMailUrl, '_blank');
-        }
+        const email = "network.captchacash@gmail.com";
+        navigator.clipboard.writeText(email).then(() => {
+            if (window.Telegram?.WebApp?.showAlert) {
+                window.Telegram.WebApp.showAlert("Support email copied to clipboard!\n\n" + email);
+            } else {
+                alert("Support email copied to clipboard!\n\n" + email);
+            }
+        }).catch(err => {
+            console.error("Clipboard failed", err);
+            prompt("Please copy our support email:", email);
+        });
     };
 
     return (
@@ -149,7 +154,7 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
                         </div>
                     </div>
 
-                    {/* Support & Contact (FIXED) */}
+                    {/* Support & Contact */}
                     <div className="flex flex-col gap-3">
                         <h3 className={`text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Support & Help</h3>
                         <button onClick={handleContactUs} className={`w-full p-4 rounded-xl flex items-center justify-between transition-colors ${isDarkMode ? 'bg-blue-900/20 hover:bg-blue-900/40 border border-blue-500/30' : 'bg-blue-50 hover:bg-blue-100 border border-blue-200'}`}>
@@ -160,7 +165,7 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
                                     <span className="text-[10px] text-slate-500">network.captchacash@gmail.com</span>
                                 </div>
                             </div>
-                            <span className="text-slate-400">→</span>
+                            <span className="text-slate-400">📋 Copy</span>
                         </button>
                     </div>
 
@@ -174,8 +179,8 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
                                         onClick={() => setOpenFaq(openFaq === i ? null : i)}
                                         className="w-full p-4 text-left flex justify-between items-center"
                                     >
-                                        <span className={`font-bold text-sm ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{faq.q}</span>
-                                        <span className="text-slate-400">{openFaq === i ? '−' : '+'}</span>
+                                        <span className={`font-bold text-sm pr-2 ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{faq.q}</span>
+                                        <span className="text-slate-400 font-mono text-lg leading-none">{openFaq === i ? '−' : '+'}</span>
                                     </button>
                                     {openFaq === i && (
                                         <div className={`px-4 pb-4 text-xs leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
@@ -201,8 +206,8 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
                             <div className="flex flex-col gap-2 bg-red-950/30 p-4 rounded-xl border border-red-900/50">
                                 <p className="text-xs text-red-400 font-bold text-center mb-2 uppercase">Are you absolutely sure? This cannot be undone.</p>
                                 <div className="flex gap-2">
-                                    <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-lg bg-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-700">Cancel</button>
-                                    <button onClick={onDelete} className="flex-1 py-2 rounded-lg bg-red-600 text-white font-bold text-xs hover:bg-red-500 shadow-[0_0_15px_rgba(220,38,38,0.4)]">Yes, Delete</button>
+                                    <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2 rounded-lg bg-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-700 transition-colors">Cancel</button>
+                                    <button onClick={onDelete} className="flex-1 py-2 rounded-lg bg-red-600 text-white font-bold text-xs hover:bg-red-500 shadow-[0_0_15px_rgba(220,38,38,0.4)] transition-all active:scale-95">Yes, Delete</button>
                                 </div>
                             </div>
                         )}
@@ -326,7 +331,7 @@ const App: React.FC = () => {
            });
 
            setPlayer(prev => {
-                if (prev && prev.telegramId === newPlayer.telegramid) {
+                if (prev && prev.telegramId === newPlayer.telegramid && !isDeletingRef.current) {
                     return {
                         ...prev,
                         referralCount: newPlayer.referralcount,
@@ -551,7 +556,7 @@ const App: React.FC = () => {
       }
   };
 
-  // ✅ FIX: Added condition to prevent saving when account deletion is happening
+  // ✅ FIX: Respect the isDeletingRef lock so we don't accidentally save while deleting!
   useEffect(() => {
       if (!canSave) return;
       const saveInterval = setInterval(() => {
@@ -595,7 +600,9 @@ const App: React.FC = () => {
         if (player.levelUpAdsWatched >= requiredAds) {
             const updated = { ...player, level: player.level + 1, levelUpAdsWatched: 0 };
             setPlayer(updated);
-            savePlayerToSupabase(updated, upgradesRef.current);
+            
+            if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
+            
             lastNotifiedLevelRef.current = 0; 
         } else {
             if (lastNotifiedLevelRef.current !== currentLevel) {
@@ -633,7 +640,7 @@ const App: React.FC = () => {
     if (lastPassiveTimeRef.current !== undefined) {
       const deltaTime = (time - lastPassiveTimeRef.current) / 1000;
       setPlayer(prev => {
-        if (!prev || prev.isBanned) return prev;
+        if (!prev || prev.isBanned || isDeletingRef.current) return prev;
 
         const now = Date.now();
         const activeBoosts = prev.activeBoosts.filter(boost => boost.expiresAt > now);
@@ -670,11 +677,12 @@ const App: React.FC = () => {
       setPlayer(updatedPlayer);
       setOfflineEarnings(null);
       triggerBalanceAnimation();
-      savePlayerToSupabase(updatedPlayer, upgradesRef.current);
+      
+      if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, upgradesRef.current);
   };
 
   const handleHoldStart = () => {
-    if (holdIntervalRef.current || !player || player.currentEnergy <= 0 || player.isBanned) return;
+    if (holdIntervalRef.current || !player || player.currentEnergy <= 0 || player.isBanned || isDeletingRef.current) return;
     accumulatedHoldRewardRef.current = 0;
     setCurrentHoldAmount(0);
 
@@ -725,7 +733,8 @@ const App: React.FC = () => {
     setPendingHoldReward(null);
     setIsClaimModalVisible(false);
     accumulatedHoldRewardRef.current = 0;
-    savePlayerToSupabase(updated, upgradesRef.current);
+    
+    if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
   };
 
   const handleCancelHoldReward = () => {
@@ -757,7 +766,7 @@ const App: React.FC = () => {
     setPlayer(updatedPlayer);
     setUpgrades(newUpgrades);
     
-    savePlayerToSupabase(updatedPlayer, newUpgrades);
+    if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, newUpgrades);
   };
 
   const processDealPurchase = (deal: StellarDeal) => {
@@ -796,7 +805,8 @@ const App: React.FC = () => {
     
     if (deal.cooldown) updatedPlayer.lastDealPurchases = { ...updatedPlayer.lastDealPurchases, [deal.id]: Date.now() };
     setPlayer(updatedPlayer);
-    savePlayerToSupabase(updatedPlayer, upgradesRef.current);
+    
+    if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, upgradesRef.current);
   };
 
   const handleBuyStellarDeal = (deal: StellarDeal) => {
@@ -832,7 +842,7 @@ const App: React.FC = () => {
     setPlayer(updatedPlayer);
     setView('Earn');
     
-    savePlayerToSupabase(updatedPlayer, upgradesRef.current);
+    if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, upgradesRef.current);
   };
   
   const handleSolveCipher = () => {
@@ -848,14 +858,16 @@ const App: React.FC = () => {
     setPlayer(updated);
     triggerBalanceAnimation();
     setView('Earn');
-    savePlayerToSupabase(updated, upgradesRef.current);
+    
+    if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
   };
 
   const handleActivateBooster = () => {
     if (!player) return;
     const updated = { ...player, currentEnergy: player.maxEnergy, lastBoosterClaimed: Date.now() };
     setPlayer(updated);
-    savePlayerToSupabase(updated, upgradesRef.current);
+    
+    if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
   };
 
   const handleWatchLevelUpAd = () => {
@@ -882,7 +894,8 @@ const App: React.FC = () => {
             setPlayer(updatedPlayer);
             triggerBalanceAnimation();
             setPendingTasks(prev => prev.filter(id => id !== task.id)); 
-            savePlayerToSupabase(updatedPlayer, upgradesRef.current);
+            
+            if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, upgradesRef.current);
         } else {
             setPendingTasks(prev => [...new Set([...prev, task.id])]);
             if (targetUrl) {
@@ -906,7 +919,7 @@ const App: React.FC = () => {
                 triggerBalanceAnimation();
             }
             
-            savePlayerToSupabase(updatedPlayer, upgradesRef.current);
+            if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, upgradesRef.current);
             return updatedPlayer;
         });
     }
@@ -930,7 +943,7 @@ const App: React.FC = () => {
     triggerBalanceAnimation();
     setPendingTasks(prev => prev.filter(id => id !== taskId));
     
-    savePlayerToSupabase(updatedPlayer, upgradesRef.current);
+    if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, upgradesRef.current);
     return true;
   };
   
@@ -948,14 +961,15 @@ const App: React.FC = () => {
     };
     setPlayer(updated);
     setGlobalWithdrawals(prev => [newWithdrawal, ...prev]);
-    savePlayerToSupabase(updated, upgradesRef.current);
+    
+    if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
   };
 
-  // ✅ FIX: Safely delete account by locking the auto-saver, deleting, and forcing a refresh
+  // ✅ FIX: Securly Delete Account Logic
   const handleDeleteAccount = async () => {
       if (!player) return;
       
-      // Stop the auto-saver from running to prevent data resurrection
+      // Stop the auto-saver from running to prevent the account from respawning
       isDeletingRef.current = true;
       setCanSave(false); 
 
@@ -968,8 +982,14 @@ const App: React.FC = () => {
           localStorage.clear();
           sessionStorage.clear();
           
-          // Hard reload the app so Telegram treats it as a brand-new user session
-          window.location.replace(window.location.pathname + "?t=" + Date.now()); 
+          // Show alert and close/refresh WebApp
+          if (window.Telegram?.WebApp?.showAlert) {
+              window.Telegram.WebApp.showAlert("Account successfully deleted. The app will now reload.", () => {
+                  window.location.replace(window.location.pathname + "?t=" + Date.now());
+              });
+          } else {
+              window.location.replace(window.location.pathname + "?t=" + Date.now());
+          }
       } catch (e) {
           console.error("Failed to delete account", e);
           alert("Failed to delete account. Please check your connection and try again.");
