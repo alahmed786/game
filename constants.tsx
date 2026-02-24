@@ -46,8 +46,9 @@ export const INITIAL_ADMIN_CONFIG: AdminConfig = {
   ]
 };
 
+// ✅ 100% REMOVED: Void Manipulator. 
+// ✅ UPDATED: Quantum Reactor Max Level 10, Wormhole Level 10 (cost 45 stars)
 export const INITIAL_UPGRADES: Upgrade[] = [
-  // ✅ NEW: Added a Stardust Market upgrade so players can actually generate passive income for the Wormhole!
   {
     id: 'm1',
     name: 'Auto-Miner Drone',
@@ -67,7 +68,7 @@ export const INITIAL_UPGRADES: Upgrade[] = [
     cost: 8,
     cptBoost: 2,
     level: 0,
-    maxLevel: 10, // ✅ UPDATED: Max level is now 10
+    maxLevel: 10,
     category: 'Special',
     icon: '🌀',
     costType: 'stars',
@@ -89,18 +90,18 @@ export const INITIAL_UPGRADES: Upgrade[] = [
     id: 's5',
     name: 'Wormhole Profits',
     description: 'Allows your empire to accumulate Stardust while you are offline. Requires Auto-Miners to function!',
-    cost: 45, // ✅ UPDATED: Costs 45 Stars
+    cost: 45, 
     level: 0,
     maxLevel: 1,
     category: 'Special',
-    icon: '⏳',
-    unlockLevel: 10, // ✅ UPDATED: Unlocks at Level 10
+    icon: '🌌',
+    unlockLevel: 10, 
     costType: 'stars',
   },
 ];
 
+// ✅ 100% REMOVED: Meteor Mining. 
 export const INITIAL_STELLAR_DEALS: StellarDeal[] = [
-  // ✅ REMOVED Meteor Mining, added a fun Ad-based Supply Drop
   {
     id: 'ad_supply_drop',
     title: 'Orbital Supply Drop',
@@ -110,7 +111,7 @@ export const INITIAL_STELLAR_DEALS: StellarDeal[] = [
     cost: 1,
     rewardType: 'stardust_boost',
     rewardValue: 2000,
-    cooldown: 3600000, // 1 hour cooldown
+    cooldown: 3600000, 
   },
   {
     id: 'boost_auto_pilot',
@@ -147,12 +148,10 @@ export const INITIAL_STELLAR_DEALS: StellarDeal[] = [
   },
 ];
 
-
 export const MAX_ENERGY = 1000;
 export const ENERGY_REFILL_DURATION_SECONDS = 3600; 
 export const ENERGY_REGEN_RATE = MAX_ENERGY / ENERGY_REFILL_DURATION_SECONDS;
 
-// Daily Rewards (Initial)
 export const INITIAL_DAILY_REWARDS: DailyReward[] = [
   { type: 'stardust', amount: 500 },
   { type: 'stardust', amount: 1200 },
@@ -163,18 +162,15 @@ export const INITIAL_DAILY_REWARDS: DailyReward[] = [
   { type: 'stars', amount: 5 }, 
 ];
 
-// Morse code helper
 export const MORSE_CODE_MAP: { [key: string]: string } = {
   'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.', 'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-', 'Y': '-.--', 'Z': '--..',
 };
 
-// Hold-to-Earn Mechanics
 export const HOLD_TICK_RATE_MS = 100;
 export const HOLD_EARN_MULTIPLIER = 0.2;
 export const HOLD_ENERGY_DRAIN_PER_TICK = 1;
-export const WITHDRAWAL_COOLDOWN_MS = 86400000; // 24 Hours
+export const WITHDRAWAL_COOLDOWN_MS = 86400000; 
 
-// Leveling System
 const generateLevelRequirements = (): number[] => {
   const levels = [0, 1000, 5000, 10000]; 
   const growthFactor = 1.16;
@@ -188,12 +184,10 @@ const generateLevelRequirements = (): number[] => {
 export const LEVEL_BALANCE_REQUIREMENTS = generateLevelRequirements();
 
 export const calculateLevelUpAdsReq = (level: number): number => {
-    // Cycle: 2, 4, 6, 8, 10, then repeat
     const index = (level - 1) % 5;
     return (index + 1) * 2;
 };
 
-// Purchasable Boosters
 export const BOOSTERS: Booster[] = [
   {
     id: 'energy_refill',
@@ -205,7 +199,6 @@ export const BOOSTERS: Booster[] = [
 
 export const BOOSTER_CLAIM_COOLDOWN = 180000;
 
-// Initial Tasks
 export const INITIAL_TASKS: Task[] = [
   {
     id: 'follow_telegram',
@@ -222,7 +215,7 @@ export const INITIAL_TASKS: Task[] = [
     icon: '📺',
     type: 'youtube_video',
     dailyLimit: 3,
-    link: 'https://youtube.com',
+    link: 'http://youtube.com',
     secretCode: '1234'
   },
   {
