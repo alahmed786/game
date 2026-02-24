@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Upgrade, Player, StellarDeal, Theme, UpgradesViewProps } from '../types';
 
@@ -136,21 +135,82 @@ const StellarDealCard: React.FC<{ deal: StellarDeal, player: Player, onBuy: (dea
   );
 };
 
+// Reusable Upgrade Card Component
+const UpgradeCard: React.FC<{ upgrade: Upgrade, player: Player, theme: string, onBuy: (id: string) => void }> = ({ upgrade, player, theme, onBuy }) => {
+  const isUnlocked = !upgrade.unlockLevel || player.level >= upgrade.unlockLevel;
+  const isStarCost = upgrade.costType === 'stars';
+  const hasEnoughCurrency = isStarCost ? player.stars >= upgrade.cost : player.balance >= upgrade.cost;
+  const canBuy = isUnlocked && hasEnoughCurrency && upgrade.level < upgrade.maxLevel;
+
+  return (
+    <div 
+      className={`relative bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border p-4 rounded-2xl flex flex-col gap-4 transition-all shadow-lg border-white/40 dark:border-slate-800 ${
+        !isUnlocked || !hasEnoughCurrency ? 'opacity-60' : `hover:border-${theme}-500/40`
+      } ${!isUnlocked ? 'grayscale' : ''}`}
+    >
+      <div className="flex gap-4 items-start">
+        <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-3xl shadow-inner border border-slate-200 dark:border-slate-700">
+          {upgrade.icon}
+        </div>
+        <div className="flex-1 flex flex-col gap-1">
+            <div className="flex justify-between items-baseline">
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">{upgrade.name}</h3>
+                <div className="bg-slate-100 dark:bg-slate-950 px-3 py-1 rounded-md border border-slate-200 dark:border-slate-800 shrink-0">
+                    <span className={`text-[10px] font-bold text-${theme}-600 dark:text-${theme}-500`}>
+                        {upgrade.level >= upgrade.maxLevel ? 'MAX' : `LVL ${upgrade.level}`}
+                    </span>
+                </div>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-tight max-w-xs">{upgrade.description}</p>
+            {!isUnlocked && upgrade.unlockLevel && (
+                <p className="text-xs text-red-500 dark:text-red-400 font-bold mt-1">Requires Level {upgrade.unlockLevel}</p>
+            )}
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-slate-800">
+        <div className="flex flex-col">
+          <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Effect</span>
+          <span className={`text-sm font-black ${upgrade.profitPerHour ? `text-${theme}-600 dark:text-${theme}-400` : 'text-purple-600 dark:text-purple-400'}`}>
+            {upgrade.profitPerHour ? `+${upgrade.profitPerHour.toLocaleString()}/hr` : 
+             upgrade.cptBoost ? `+${upgrade.cptBoost} PWR` : 
+             upgrade.holdMultiplierBoost ? `+${(upgrade.holdMultiplierBoost * 100).toFixed(0)}% Hold` : 'Special'}
+          </span>
+        </div>
+        
+        <button
+          onClick={() => onBuy(upgrade.id)}
+          disabled={!canBuy}
+          className={`px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-md
+            ${canBuy 
+              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-950 active:scale-95 shadow-[0_0_15px_rgba(0,0,0,0.1)] dark:shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
+              : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600'}
+          `}
+        >
+          <span>{isStarCost ? '⭐' : '🪐'}</span>
+          {upgrade.level >= upgrade.maxLevel ? 'MAXED' : upgrade.cost.toLocaleString()}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 
 const UpgradesView: React.FC<UpgradesViewProps> = ({ upgrades, stellarDeals, player, onBuy, onBuyStellarDeal, isDealAdModalVisible, dealToProcess, onConfirmDealAd, onCancelDealAd, theme, onShowAd }) => {
-  const [filter, setFilter] = useState<'Special'>('Special'); 
-  const filteredUpgrades = upgrades.filter(u => u.category === filter);
+  const marketUpgrades = upgrades.filter(u => u.category === 'Market');
+  const specialUpgrades = upgrades.filter(u => u.category === 'Special');
 
   return (
     <div className="pt-4 flex flex-col gap-6">
       {isDealAdModalVisible && dealToProcess && <AdDealModal deal={dealToProcess} onConfirm={onConfirmDealAd} onCancel={onCancelDealAd} theme={theme} onShowAd={onShowAd} />}
+      
       <div className={`bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-white/40 dark:border-${theme}-500/20 text-center flex flex-col items-center gap-2 mx-4 shadow-xl`}>
         <div className={`w-16 h-16 bg-gradient-to-br from-${theme}-500 to-blue-600 rounded-full flex items-center justify-center text-4xl shadow-xl`}>🚀</div>
         <h2 className="text-xl font-bold uppercase tracking-widest text-slate-900 dark:text-white">Fleet Command</h2>
         <p className="text-xs text-slate-600 dark:text-slate-300">Upgrade your technologies to expand your cosmic influence.</p>
       </div>
 
-      {/* Stellar Market */}
+      {/* Stellar Deals / Market */}
       <div className="flex flex-col gap-3">
         <h3 className="text-sm font-bold text-yellow-500 dark:text-yellow-400 uppercase tracking-widest px-4">Stellar Market</h3>
         <div className="flex flex-col gap-4 px-4">
@@ -160,71 +220,30 @@ const UpgradesView: React.FC<UpgradesViewProps> = ({ upgrades, stellarDeals, pla
         </div>
       </div>
 
-      <div className="px-4">
-        <h3 className={`text-sm font-bold text-${theme}-600 dark:text-${theme}-400 uppercase tracking-widest mb-3`}>Special Technologies</h3>
-      </div>
+      {/* Basic Upgrades (Cost Stardust) */}
+      {marketUpgrades.length > 0 && (
+          <>
+              <div className="px-4 mt-2">
+                <h3 className={`text-sm font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-widest mb-3`}>Passive Income</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-4 px-4">
+                {marketUpgrades.map((upgrade) => (
+                  <UpgradeCard key={upgrade.id} upgrade={upgrade} player={player} theme={theme} onBuy={onBuy} />
+                ))}
+              </div>
+          </>
+      )}
 
+      {/* Premium Upgrades (Cost Stars) */}
+      <div className="px-4 mt-4">
+        <h3 className={`text-sm font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-3`}>Special Technologies</h3>
+      </div>
       <div className="grid grid-cols-1 gap-4 pb-12 px-4">
-        {filteredUpgrades.map((upgrade) => {
-          const isUnlocked = !upgrade.unlockLevel || player.level >= upgrade.unlockLevel;
-          const isStarCost = upgrade.costType === 'stars';
-          const hasEnoughCurrency = isStarCost 
-            ? player.stars >= upgrade.cost
-            : player.balance >= upgrade.cost;
-          const canBuy = isUnlocked && hasEnoughCurrency && upgrade.level < upgrade.maxLevel;
-
-          return (
-            <div 
-              key={upgrade.id}
-              className={`relative bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border p-4 rounded-2xl flex flex-col gap-4 transition-all shadow-lg border-white/40 dark:border-slate-800 ${
-                !isUnlocked || !hasEnoughCurrency ? 'opacity-60' : `hover:border-${theme}-500/40`
-              } ${!isUnlocked ? 'grayscale' : ''}`}
-            >
-              <div className="flex gap-4 items-start">
-                <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-3xl shadow-inner border border-slate-200 dark:border-slate-700">
-                  {upgrade.icon}
-                </div>
-                <div className="flex-1 flex flex-col gap-1">
-                    <div className="flex justify-between items-baseline">
-                        <h3 className="font-bold text-base text-slate-900 dark:text-white">{upgrade.name}</h3>
-                        <div className="bg-slate-100 dark:bg-slate-950 px-3 py-1 rounded-md border border-slate-200 dark:border-slate-800">
-                            <span className={`text-[10px] font-bold text-${theme}-600 dark:text-${theme}-500`}>LVL {upgrade.level}</span>
-                        </div>
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-tight max-w-xs">{upgrade.description}</p>
-                    {!isUnlocked && upgrade.unlockLevel && (
-                        <p className="text-xs text-red-500 dark:text-red-400 font-bold mt-1">Requires Level {upgrade.unlockLevel}</p>
-                    )}
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-slate-800">
-                <div className="flex flex-col">
-                  <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Effect</span>
-                  <span className={`text-sm font-black ${upgrade.profitPerHour ? `text-${theme}-600 dark:text-${theme}-400` : 'text-purple-600 dark:text-purple-400'}`}>
-                    {upgrade.profitPerHour ? `+${upgrade.profitPerHour.toLocaleString()}/hr` : 
-                     upgrade.cptBoost ? `+${upgrade.cptBoost} PWR` : 
-                     upgrade.holdMultiplierBoost ? `+${(upgrade.holdMultiplierBoost * 100).toFixed(0)}% Hold` : 'Special'}
-                  </span>
-                </div>
-                
-                <button
-                  onClick={() => onBuy(upgrade.id)}
-                  disabled={!canBuy}
-                  className={`px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-md
-                    ${canBuy 
-                      ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-950 active:scale-95 shadow-[0_0_15px_rgba(0,0,0,0.1)] dark:shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
-                      : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600'}
-                  `}
-                >
-                  <span>{isStarCost ? '⭐' : '🪐'}</span>
-                  {upgrade.cost.toLocaleString()}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+        {specialUpgrades.map((upgrade) => (
+            <UpgradeCard key={upgrade.id} upgrade={upgrade} player={player} theme={theme} onBuy={onBuy} />
+        ))}
       </div>
+
     </div>
   );
 };
