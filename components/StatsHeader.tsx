@@ -21,9 +21,10 @@ interface StatsHeaderProps {
   theme: string;
   onOpenAdmin?: () => void;
   showAdminLock?: boolean;
+  onOpenProfile?: () => void; // ✅ NEW: Prop to open profile
 }
 
-const StatsHeader: React.FC<StatsHeaderProps> = ({ player, animateBalance, theme, onOpenAdmin, showAdminLock }) => {
+const StatsHeader: React.FC<StatsHeaderProps> = ({ player, animateBalance, theme, onOpenAdmin, showAdminLock, onOpenProfile }) => {
   if (!player) return null;
 
   const currentLevelIndex = Math.max(0, player.level - 1);
@@ -46,8 +47,11 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({ player, animateBalance, theme
         
         <div className="flex items-center justify-between min-w-0">
           
-          {/* Left: Profile & Level Section */}
-          <div className="flex items-center gap-2.5 min-w-0 shrink">
+          {/* Left: Profile & Level Section (NOW CLICKABLE) */}
+          <button 
+            onClick={onOpenProfile}
+            className="flex items-center gap-2.5 min-w-0 shrink text-left active:scale-95 transition-transform hover:opacity-80 rounded-xl outline-none"
+          >
             <div className="relative shrink-0">
               {/* Compact Gradient Avatar Border */}
               <div className={`w-10 h-10 rounded-xl p-[1px] bg-gradient-to-br from-${theme}-400 to-purple-500 shadow-sm`}>
@@ -70,21 +74,21 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({ player, animateBalance, theme
                     {player.username}
                 </span>
                 {showAdminLock && (
-                   <button onClick={onOpenAdmin} className="text-yellow-500 text-xs drop-shadow-md hover:scale-110 transition-transform shrink-0">
+                   <span onClick={(e) => { e.stopPropagation(); onOpenAdmin && onOpenAdmin(); }} className="text-yellow-500 text-xs drop-shadow-md hover:scale-110 transition-transform shrink-0 cursor-pointer">
                      👑
-                   </button>
+                   </span>
                 )}
               </div>
               <span className={`text-[8px] font-bold uppercase tracking-[0.15em] text-${theme}-500 dark:text-${theme}-400 truncate`}>
                 {rankName}
               </span>
             </div>
-          </div>
+          </button>
 
           {/* Right: Balances Section */}
           <div className="flex flex-col items-end gap-1 shrink-0 pl-2">
              
-             {/* Primary Currency Pill - Theme Colored Border */}
+             {/* Primary Currency Pill */}
              <div className={`flex items-center gap-1.5 bg-${theme}-50/50 dark:bg-${theme}-900/20 border border-${theme}-300 dark:border-${theme}-500/50 shadow-sm dark:shadow-[0_0_10px_rgba(6,182,212,0.15)] px-2.5 py-0.5 rounded-lg ${animateBalance ? 'scale-105' : 'scale-100'} transition-transform duration-200`}>
                 <span className="text-sm drop-shadow-sm">🪐</span>
                 <span className={`font-mono font-black text-sm tracking-wider text-slate-900 dark:text-white ${animateBalance ? `text-${theme}-500 drop-shadow-[0_0_8px_rgba(var(--bg-primary),0.8)]` : ''}`}>
@@ -92,7 +96,7 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({ player, animateBalance, theme
                 </span>
              </div>
              
-             {/* Premium Currency (Stars) Pill - Gold Colored Border */}
+             {/* Premium Currency (Stars) Pill */}
              <div className="flex items-center gap-1.5 bg-yellow-50/50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-500/50 shadow-sm dark:shadow-[0_0_10px_rgba(234,179,8,0.1)] px-2 py-[2px] rounded-md opacity-95">
                  <span className="text-[10px] drop-shadow-sm">⭐</span>
                  <span className="font-mono text-[10px] font-black tracking-wider text-yellow-600 dark:text-yellow-400">
