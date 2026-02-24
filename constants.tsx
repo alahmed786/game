@@ -1,4 +1,3 @@
-
 import { Upgrade, Booster, DailyReward, Task, StellarDeal, Theme, AdminConfig } from './types';
 
 // Theme Configurations
@@ -37,14 +36,30 @@ export const INITIAL_ADMIN_CONFIG: AdminConfig = {
   dailyCipherWord: 'SPACE',
   minWithdrawalTon: 3,
   referralRewardStars: 10,
-  dailyRewardBase: 1, // 1x multiplier
+  dailyRewardBase: 1, 
   dailyCipherReward: 5000,
+  maintenanceMode: false,
+  maintenanceEndTime: null,
+  demoMode: false,
   adUnits: [
     { id: 'au_default_rewarded', name: 'Standard Rewarded', network: 'Adsgram', blockId: '0000', type: 'rewarded', active: true }
   ]
 };
 
 export const INITIAL_UPGRADES: Upgrade[] = [
+  // ✅ NEW: Added a Stardust Market upgrade so players can actually generate passive income for the Wormhole!
+  {
+    id: 'm1',
+    name: 'Auto-Miner Drone',
+    description: 'Basic drones that automate stardust collection. Essential for offline mining.',
+    cost: 1500,
+    costType: 'stardust',
+    profitPerHour: 2500,
+    level: 0,
+    maxLevel: 25,
+    category: 'Market',
+    icon: '🤖',
+  },
   {
     id: 's1',
     name: 'Quantum Reactor',
@@ -52,21 +67,9 @@ export const INITIAL_UPGRADES: Upgrade[] = [
     cost: 8,
     cptBoost: 2,
     level: 0,
-    maxLevel: 8,
+    maxLevel: 10, // ✅ UPDATED: Max level is now 10
     category: 'Special',
     icon: '🌀',
-    costType: 'stars',
-  },
-  {
-    id: 's2',
-    name: 'Void Manipulator',
-    description: 'A significant permanent boost to Stardust gained per tap.',
-    cost: 15,
-    cptBoost: 5,
-    level: 0,
-    maxLevel: 5,
-    category: 'Special',
-    icon: '🪐',
     costType: 'stars',
   },
   {
@@ -85,27 +88,29 @@ export const INITIAL_UPGRADES: Upgrade[] = [
   {
     id: 's5',
     name: 'Wormhole Profits',
-    description: 'Allows your empire to accumulate Stardust while you are away.',
-    cost: 10,
+    description: 'Allows your empire to accumulate Stardust while you are offline. Requires Auto-Miners to function!',
+    cost: 45, // ✅ UPDATED: Costs 45 Stars
     level: 0,
     maxLevel: 1,
     category: 'Special',
     icon: '⏳',
+    unlockLevel: 10, // ✅ UPDATED: Unlocks at Level 10
     costType: 'stars',
   },
 ];
 
 export const INITIAL_STELLAR_DEALS: StellarDeal[] = [
+  // ✅ REMOVED Meteor Mining, added a fun Ad-based Supply Drop
   {
-    id: 'boost_meteor_mining',
-    title: 'Meteor Mining',
-    description: 'Generate 120 Stardust per hour. This boost lasts for 1 hour.',
-    icon: '☄️',
-    costType: 'stars',
-    cost: 10,
-    rewardType: 'passive_income_boost',
-    rewardValue: { pph: 120, duration: 3600000 },
-    unlockLevel: 7,
+    id: 'ad_supply_drop',
+    title: 'Orbital Supply Drop',
+    description: 'Watch a brief transmission to receive an instant cache of 2,000 Stardust.',
+    icon: '📦',
+    costType: 'ad',
+    cost: 1,
+    rewardType: 'stardust_boost',
+    rewardValue: 2000,
+    cooldown: 3600000, // 1 hour cooldown
   },
   {
     id: 'boost_auto_pilot',
