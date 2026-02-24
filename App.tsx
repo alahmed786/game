@@ -112,6 +112,16 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
         { q: "What are Stars?", a: "Premium currency used to purchase elite Fleet Upgrades and special Stellar Deals." }
     ];
 
+    // ✅ FIX: HTTPS link to bypass Telegram mailto block
+    const handleContactUs = () => {
+        const safeMailUrl = "https://mail.google.com/mail/?view=cm&fs=1&to=network.captchacash@gmail.com";
+        if (window.Telegram?.WebApp?.openLink) {
+            window.Telegram.WebApp.openLink(safeMailUrl);
+        } else {
+            window.open(safeMailUrl, '_blank');
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in pb-0 sm:pb-6 px-0 sm:px-4">
             <div className={`w-full max-w-md h-[85vh] sm:h-auto sm:max-h-[85vh] rounded-t-3xl sm:rounded-3xl p-6 flex flex-col shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#0f172a] border border-slate-800' : 'bg-white border border-slate-200'}`}>
@@ -139,10 +149,10 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
                         </div>
                     </div>
 
-                    {/* Support & Contact */}
+                    {/* Support & Contact (FIXED) */}
                     <div className="flex flex-col gap-3">
                         <h3 className={`text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Support & Help</h3>
-                        <a href="mailto:network.captchacash@gmail.com" className={`w-full p-4 rounded-xl flex items-center justify-between transition-colors ${isDarkMode ? 'bg-blue-900/20 hover:bg-blue-900/40 border border-blue-500/30' : 'bg-blue-50 hover:bg-blue-100 border border-blue-200'}`}>
+                        <button onClick={handleContactUs} className={`w-full p-4 rounded-xl flex items-center justify-between transition-colors ${isDarkMode ? 'bg-blue-900/20 hover:bg-blue-900/40 border border-blue-500/30' : 'bg-blue-50 hover:bg-blue-100 border border-blue-200'}`}>
                             <div className="flex items-center gap-3">
                                 <span className="text-xl">📧</span>
                                 <div className="flex flex-col text-left">
@@ -151,7 +161,7 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
                                 </div>
                             </div>
                             <span className="text-slate-400">→</span>
-                        </a>
+                        </button>
                     </div>
 
                     {/* FAQ */}
@@ -250,6 +260,9 @@ const App: React.FC = () => {
   const [isDealAdModalVisible, setIsDealAdModalVisible] = useState(false);
 
   const [canSave, setCanSave] = useState(false);
+  
+  // ✅ FIX: Lock variable to prevent Supabase auto-save loop after account deletion
+  const isDeletingRef = useRef(false);
 
   const passiveUpdateRef = useRef<number>(0);
   const lastPassiveTimeRef = useRef<number | undefined>(undefined);
@@ -538,10 +551,13 @@ const App: React.FC = () => {
       }
   };
 
+  // ✅ FIX: Added condition to prevent saving when account deletion is happening
   useEffect(() => {
       if (!canSave) return;
       const saveInterval = setInterval(() => {
-          if (playerRef.current) savePlayerToSupabase(playerRef.current, upgradesRef.current);
+          if (playerRef.current && !isDeletingRef.current) {
+              savePlayerToSupabase(playerRef.current, upgradesRef.current);
+          }
       }, 5000); 
       return () => clearInterval(saveInterval);
   }, [canSave]);
@@ -935,13 +951,30 @@ const App: React.FC = () => {
     savePlayerToSupabase(updated, upgradesRef.current);
   };
 
+  // ✅ FIX: Safely delete account by locking the auto-saver, deleting, and forcing a refresh
   const handleDeleteAccount = async () => {
       if (!player) return;
+      
+      // Stop the auto-saver from running to prevent data resurrection
+      isDeletingRef.current = true;
+      setCanSave(false); 
+
       try {
-          await supabase.from('players').delete().eq('telegramid', player.telegramId);
-          window.location.reload(); 
+          // Permanently erase the row from Supabase Database
+          const { error } = await supabase.from('players').delete().eq('telegramid', player.telegramId);
+          if (error) throw error;
+          
+          // Clear all local web app data cache
+          localStorage.clear();
+          sessionStorage.clear();
+          
+          // Hard reload the app so Telegram treats it as a brand-new user session
+          window.location.replace(window.location.pathname + "?t=" + Date.now()); 
       } catch (e) {
           console.error("Failed to delete account", e);
+          alert("Failed to delete account. Please check your connection and try again.");
+          isDeletingRef.current = false;
+          setCanSave(true);
       }
   };
 
