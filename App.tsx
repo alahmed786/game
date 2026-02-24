@@ -28,7 +28,6 @@ declare global {
 
 const ADMIN_ID = "702954043";
 
-// ✅ NEW: Maintenance Screen Component
 const MaintenanceScreen: React.FC<{ endTime: number; onFinished: () => void; isDarkMode: boolean }> = ({ endTime, onFinished, isDarkMode }) => {
   const [timeLeft, setTimeLeft] = useState("");
 
@@ -74,6 +73,31 @@ const MaintenanceScreen: React.FC<{ endTime: number; onFinished: () => void; isD
   );
 };
 
+const OfflineEarningsModal: React.FC<{ amount: number; onClaim: () => void; isDarkMode: boolean }> = ({ amount, onClaim, isDarkMode }) => (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-fade-in">
+        <div className={`relative w-full max-w-sm rounded-[2rem] p-8 text-center shadow-[0_0_50px_rgba(168,85,247,0.3)] overflow-hidden ${isDarkMode ? 'bg-[#0f172a] border border-purple-500/30' : 'bg-white border border-purple-200'}`}>
+            <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-purple-500/20 to-transparent pointer-events-none"></div>
+            <div className="w-24 h-24 mx-auto bg-purple-500/10 border border-purple-500/30 rounded-full flex items-center justify-center text-5xl mb-6 shadow-inner animate-[spin_10s_linear_infinite]">
+                🌌
+            </div>
+            <h2 className={`text-2xl font-black uppercase tracking-widest mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Wormhole Secured</h2>
+            <p className={`text-sm mb-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Your offline drones have returned from the void with harvested stardust.</p>
+            
+            <div className="flex items-center justify-center gap-2 mb-8 bg-purple-500/10 py-4 rounded-xl border border-purple-500/20">
+                <span className="text-2xl drop-shadow-sm">🪐</span>
+                <span className="text-3xl font-black font-mono text-purple-400 tracking-wider">+{Math.floor(amount).toLocaleString()}</span>
+            </div>
+
+            <button 
+                onClick={onClaim}
+                className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black uppercase tracking-[0.2em] rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.4)] active:scale-95 transition-all"
+            >
+                Transfer to Vault
+            </button>
+        </div>
+    </div>
+);
+
 const App: React.FC = () => {
   const [showIntro, setShowIntro] = useState(true);
   const [view, setView] = useState<View>('Earn');
@@ -94,6 +118,8 @@ const App: React.FC = () => {
   const [isClaimModalVisible, setIsClaimModalVisible] = useState(false);
   const [currentHoldAmount, setCurrentHoldAmount] = useState(0);
   const accumulatedHoldRewardRef = useRef(0);
+
+  const [offlineEarnings, setOfflineEarnings] = useState<number | null>(null);
   
   const [isRewardUrgent, setIsRewardUrgent] = useState(false);
   const [pendingTasks, setPendingTasks] = useState<string[]>([]);
@@ -147,13 +173,11 @@ const App: React.FC = () => {
     });
   };
 
-  // ✅ UPDATED: Demo Mode Ad Bypass Logic
   const handleShowAd = (onComplete: () => void, onError: (msg: string) => void) => {
      if (adminConfig.demoMode) {
-         console.log("[DEMO MODE] Bypassing Ad Network...");
          setTimeout(() => {
              onComplete();
-         }, 500); // Simulate brief loading
+         }, 500); 
          return;
      }
      showAd(adminConfig.adUnits, onComplete, onError);
@@ -180,7 +204,6 @@ const App: React.FC = () => {
               return [...filtered, mappedPlayer].sort((a, b) => b.balance - a.balance);
            });
 
-           // ✅ UPDATED: Pull in real-time Level & Balance changes for Demo Cheat Panel
            setPlayer(prev => {
                 if (prev && prev.telegramId === newPlayer.telegramid) {
                     return {
@@ -249,8 +272,7 @@ const App: React.FC = () => {
         lastRewardClaimed: null,
         consecutiveDays: 0,
         dailyCipherClaimed: false,
-        // @ts-ignore
-        lastCipherClaimed: null,
+        lastCipherClaimed: null as any,
         level: 1,
         levelUpAdsWatched: 0, 
         stars: 5,
@@ -303,7 +325,6 @@ const App: React.FC = () => {
                     invitedBy: remotePlayer.invitedby || remotePlayer.invitedBy,
                     ...remotePlayer.gamestate,
                     photoUrl: userData?.photo_url || remotePlayer.gamestate?.photoUrl,
-                    // @ts-ignore
                     lastCipherClaimed: remotePlayer.gamestate?.lastCipherClaimed || null
                 };
 
@@ -311,25 +332,24 @@ const App: React.FC = () => {
                      setUpgrades(remotePlayer.gamestate.upgrades);
                 }
 
-                if (parsedPlayer.hasOfflineEarnings) {
+                if (parsedPlayer.hasOfflineEarnings && parsedPlayer.passivePerHour > 0) {
                     const now = Date.now();
                     const lastUpdate = parsedPlayer.lastUpdate || now;
                     const secondsOffline = (now - lastUpdate) / 1000;
-                    if (secondsOffline > 0) {
+                    
+                    if (secondsOffline > 300) {
                         const offlineIncome = (parsedPlayer.passivePerHour / 3600) * secondsOffline;
                         if (!isNaN(offlineIncome) && offlineIncome > 0) {
-                            parsedPlayer.balance += offlineIncome;
+                            setOfflineEarnings(offlineIncome); 
                         }
                     }
                 }
 
-                // @ts-ignore
                 if (parsedPlayer.lastCipherClaimed) {
-                    // @ts-ignore
                     const claimDay = Math.floor(parsedPlayer.lastCipherClaimed / 86400000);
                     const currentDay = Math.floor(Date.now() / 86400000);
                     if (currentDay > claimDay) {
-                        parsedPlayer.dailyCipherClaimed = false; // Reset if new UTC day
+                        parsedPlayer.dailyCipherClaimed = false;
                     }
                 }
 
@@ -340,23 +360,22 @@ const App: React.FC = () => {
                 const newPlayer = createNewPlayer();
                 if (startParam && startParam !== telegramId) {
                     processReferral(startParam, telegramId, adminConfig.referralRewardStars)
-                        .catch(err => console.error("Referral Error:", err));
+                        .catch(err => console.error(err));
                     newPlayer.invitedBy = startParam;
                 }
                 loadedPlayer = newPlayer;
                 setCanSave(true);
-                savePlayerToSupabase(newPlayer, upgrades).catch(e => console.error("Initial Save Failed:", e));
+                savePlayerToSupabase(newPlayer, upgrades).catch(e => console.error(e));
             }
             
             setPlayer(loadedPlayer);
 
-            // @ts-ignore
             const top50 = leaderboardData as Player[] || [];
             const indexInTop = top50.findIndex((p: any) => (p.telegramid || p.telegramId) === telegramId);
             setUserRank(indexInTop !== -1 ? indexInTop + 1 : await fetchUserRank(loadedPlayer.balance));
 
         } catch (e) {
-            console.error("Init Fail:", e);
+            console.error(e);
             setPlayer(createNewPlayer());
             setCanSave(false); 
         }
@@ -387,10 +406,10 @@ const App: React.FC = () => {
           }, { onConflict: 'telegramid' });
 
           if (error) {
-              console.error("❌ Save Failed:", error.message);
+              console.error(error.message);
           }
       } catch (err) {
-          console.error("Save Exception:", err);
+          console.error(err);
       }
   };
 
@@ -411,10 +430,8 @@ const App: React.FC = () => {
   useEffect(() => {
       const checkMidnightReset = () => {
           if (!player) return;
-          // @ts-ignore
-          if (player.dailyCipherClaimed && player.lastCipherClaimed) {
-              // @ts-ignore
-              const claimDay = Math.floor(player.lastCipherClaimed / 86400000);
+          if (player.dailyCipherClaimed && (player as any).lastCipherClaimed) {
+              const claimDay = Math.floor((player as any).lastCipherClaimed / 86400000);
               const currentDay = Math.floor(Date.now() / 86400000);
               if (currentDay > claimDay) {
                   setPlayer(p => p ? { ...p, dailyCipherClaimed: false } : p);
@@ -499,6 +516,21 @@ const App: React.FC = () => {
       if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
     };
   }, [updatePassiveIncome]);
+
+  const handleClaimOfflineEarnings = () => {
+      if (!player || !offlineEarnings) return;
+      
+      const updatedPlayer = { 
+          ...player, 
+          balance: player.balance + offlineEarnings,
+          lastUpdate: Date.now()
+      };
+      
+      setPlayer(updatedPlayer);
+      setOfflineEarnings(null);
+      triggerBalanceAnimation();
+      savePlayerToSupabase(updatedPlayer, upgradesRef.current);
+  };
 
   const handleHoldStart = () => {
     if (holdIntervalRef.current || !player || player.currentEnergy <= 0 || player.isBanned) return;
@@ -669,7 +701,6 @@ const App: React.FC = () => {
         ...player, 
         balance: player.balance + adminConfig.dailyCipherReward, 
         dailyCipherClaimed: true,
-        // @ts-ignore
         lastCipherClaimed: Date.now() 
     } as any;
     
@@ -694,8 +725,7 @@ const App: React.FC = () => {
   const handleInitiateTask = (task: Task) => {
     if (!player) return;
     
-    // @ts-ignore
-    const rawChatId = task.chatId || '';
+    const rawChatId = (task as any).chatId || '';
     const cleanChatId = rawChatId.startsWith('@') ? rawChatId.replace('@', '') : rawChatId;
     const targetUrl = task.link || (cleanChatId && !cleanChatId.startsWith('-') ? `https://t.me/${cleanChatId}` : '');
 
@@ -784,7 +814,6 @@ const App: React.FC = () => {
   if (!player) return <div className="flex h-screen items-center justify-center text-cyan-400 font-bold animate-pulse">RE-ESTABLISHING UPLINK...</div>;
   if (player.isBanned) return <div className="fixed inset-0 bg-red-950 flex flex-col items-center justify-center p-6 text-center z-[1000]"><span className="text-6xl mb-4">🚫</span><h1 className="text-3xl font-black text-red-500 uppercase tracking-widest mb-2">ACCESS DENIED</h1></div>;
 
-  // ✅ NEW: Maintenance Screen Logic Execution
   const isMaintenanceActive = adminConfig.maintenanceMode && 
                               adminConfig.maintenanceEndTime && 
                               Date.now() < adminConfig.maintenanceEndTime;
@@ -914,7 +943,14 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-[100dvh] overflow-hidden relative">
       
-      {/* ✅ NEW: Global Demo Mode Visual Indicator */}
+      {offlineEarnings !== null && (
+          <OfflineEarningsModal 
+              amount={offlineEarnings} 
+              onClaim={handleClaimOfflineEarnings} 
+              isDarkMode={isDarkMode} 
+          />
+      )}
+
       {adminConfig.demoMode && (
           <div className="fixed top-2 left-1/2 -translate-x-1/2 z-[1000] bg-purple-600/90 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.5)] pointer-events-none animate-pulse">
             Demo Mode Active
