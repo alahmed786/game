@@ -295,14 +295,20 @@ const App: React.FC = () => {
 
     const initGame = async () => {
         try {
+            let currentGlobalUpgrades = INITIAL_UPGRADES;
+
             const globalSettings = await fetchGameSettings();
             if (globalSettings) {
                 if (globalSettings.tasks) setTasks(globalSettings.tasks);
                 if (globalSettings.stellarDeals) setStellarDeals(globalSettings.stellarDeals);
                 if (globalSettings.adminConfig) setAdminConfig(globalSettings.adminConfig);
                 if (globalSettings.dailyRewards) setDailyRewards(globalSettings.dailyRewards);
-                if (globalSettings.upgrades) setUpgrades(globalSettings.upgrades);
+                if (globalSettings.upgrades && globalSettings.upgrades.length > 0) {
+                    currentGlobalUpgrades = globalSettings.upgrades;
+                }
             }
+            
+            setUpgrades(currentGlobalUpgrades); // Set the true global baseline first
 
             const [userResult, leaderboardData] = await Promise.all([
                 supabase.from('players').select('*').eq('telegramid', telegramId).maybeSingle(),
@@ -328,8 +334,22 @@ const App: React.FC = () => {
                     lastCipherClaimed: remotePlayer.gamestate?.lastCipherClaimed || null
                 };
 
+                // ✅ FIX: DO NOT BLINDLY LOAD THE PLAYER'S OLD UPGRADES. 
+                // Merge their saved levels onto the global (Admin-controlled) upgrades list!
                 if (remotePlayer.gamestate && remotePlayer.gamestate.upgrades) {
-                     setUpgrades(remotePlayer.gamestate.upgrades);
+                     const savedUpgrades = remotePlayer.gamestate.upgrades;
+                     
+                     const mergedUpgrades = currentGlobalUpgrades.map(globalUpg => {
+                         const saved = savedUpgrades.find((s: any) => s.id === globalUpg.id);
+                         if (saved) {
+                             // Only carry over their progress, cap it at the new maxLevel just in case
+                             const clampedLevel = Math.min(saved.level, globalUpg.maxLevel);
+                             return { ...globalUpg, level: clampedLevel, cost: saved.cost };
+                         }
+                         return globalUpg;
+                     });
+                     
+                     setUpgrades(mergedUpgrades);
                 }
 
                 if (parsedPlayer.hasOfflineEarnings && parsedPlayer.passivePerHour > 0) {
@@ -365,7 +385,7 @@ const App: React.FC = () => {
                 }
                 loadedPlayer = newPlayer;
                 setCanSave(true);
-                savePlayerToSupabase(newPlayer, upgrades).catch(e => console.error(e));
+                savePlayerToSupabase(newPlayer, currentGlobalUpgrades).catch(e => console.error(e));
             }
             
             setPlayer(loadedPlayer);
