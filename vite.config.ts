@@ -1,16 +1,16 @@
-import { defineConfig } from 'vite';
+Import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
   
-  // ✅ FIX: Must be absolute '/' for Vercel. Telegram WebApp crashes if it sees './' here!
-  base: '/',
+  // ✅ FIX 1: Use './' so it works on any domain or folder (GitHub Pages, Vercel, etc.)
+  base: './',
 
   resolve: {
     alias: {
-      // Point '@' to the CURRENT directory (root), since you don't have a 'src' folder
+      // ✅ FIX 2: Point '@' to the CURRENT directory (root), since you don't have a 'src' folder
       '@': path.resolve(__dirname, './'),
     },
   },
@@ -24,8 +24,10 @@ export default defineConfig({
     port: 3000,
     host: true,
     fs: {
-      // Allow serving files from the root directory without security blocking
+      // ✅ FIX 3: Allow serving files from the root directory without security blocking
       strict: false,
     }
   }
 });
+
+Update this code
