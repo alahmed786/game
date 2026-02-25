@@ -5,12 +5,12 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   
-  // ✅ FIX 1: Use './' so it works on any domain or folder (GitHub Pages, Vercel, etc.)
-  base: './',
+  // ✅ FIX: Must be absolute '/' for Vercel. Telegram WebApp crashes if it sees './' here!
+  base: '/',
 
   resolve: {
     alias: {
-      // ✅ FIX 2: Point '@' to the CURRENT directory (root), since you don't have a 'src' folder
+      // Point '@' to the CURRENT directory (root), since you don't have a 'src' folder
       '@': path.resolve(__dirname, './'),
     },
   },
@@ -24,7 +24,7 @@ export default defineConfig({
     port: 3000,
     host: true,
     fs: {
-      // ✅ FIX 3: Allow serving files from the root directory without security blocking
+      // Allow serving files from the root directory without security blocking
       strict: false,
     }
   }
