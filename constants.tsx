@@ -1,6 +1,6 @@
 import { Upgrade, Booster, DailyReward, Task, StellarDeal, Theme, AdminConfig } from './types';
 
-// Theme Configurations - Extended with more colors for 25 levels
+// Theme Configurations - Grays removed, replaced with vibrant/high-level colors
 export const THEME_CONFIG: Record<Theme, { primary: string; secondary: string }> = {
   cyan: { primary: 'rgba(56, 189, 248, 0.2)', secondary: 'rgba(167, 139, 250, 0.15)' },
   blue: { primary: 'rgba(59, 130, 246, 0.2)', secondary: 'rgba(37, 99, 235, 0.15)' },
@@ -19,11 +19,11 @@ export const THEME_CONFIG: Record<Theme, { primary: string; secondary: string }>
   rose: { primary: 'rgba(244, 63, 94, 0.25)', secondary: 'rgba(225, 29, 72, 0.2)' },
   amber: { primary: 'rgba(245, 158, 11, 0.25)', secondary: 'rgba(217, 119, 6, 0.2)' },
   lime: { primary: 'rgba(132, 204, 22, 0.25)', secondary: 'rgba(101, 163, 13, 0.2)' },
-  slate: { primary: 'rgba(100, 116, 139, 0.2)', secondary: 'rgba(71, 85, 105, 0.15)' },
-  zinc: { primary: 'rgba(113, 113, 122, 0.2)', secondary: 'rgba(82, 82, 91, 0.15)' },
-  stone: { primary: 'rgba(120, 113, 108, 0.2)', secondary: 'rgba(87, 83, 78, 0.15)' },
-  neutral: { primary: 'rgba(115, 115, 115, 0.2)', secondary: 'rgba(82, 82, 82, 0.15)' },
-  gray: { primary: 'rgba(107, 114, 128, 0.2)', secondary: 'rgba(75, 85, 99, 0.15)' },
+  crimson: { primary: 'rgba(220, 20, 60, 0.25)', secondary: 'rgba(178, 34, 34, 0.2)' },
+  gold: { primary: 'rgba(255, 215, 0, 0.25)', secondary: 'rgba(218, 165, 32, 0.2)' },
+  neonBlue: { primary: 'rgba(0, 255, 255, 0.25)', secondary: 'rgba(0, 206, 209, 0.2)' },
+  neonPink: { primary: 'rgba(255, 20, 147, 0.25)', secondary: 'rgba(199, 21, 133, 0.2)' },
+  'emerald-600': { primary: 'rgba(5, 150, 105, 0.25)', secondary: 'rgba(4, 120, 87, 0.2)' },
   'cyan-600': { primary: 'rgba(8, 145, 178, 0.2)', secondary: 'rgba(14, 116, 144, 0.15)' },
   'blue-600': { primary: 'rgba(37, 99, 235, 0.2)', secondary: 'rgba(29, 78, 216, 0.15)' },
   'purple-600': { primary: 'rgba(147, 51, 234, 0.25)', secondary: 'rgba(126, 34, 206, 0.2)' },
@@ -31,31 +31,31 @@ export const THEME_CONFIG: Record<Theme, { primary: string; secondary: string }>
 
 // Theme colors for each level (1-25)
 const LEVEL_THEMES: Theme[] = [
-  'cyan',      // Level 1
-  'blue',      // Level 2
-  'indigo',    // Level 3
-  'purple',    // Level 4
-  'pink',      // Level 5
-  'red',       // Level 6
-  'orange',    // Level 7
-  'yellow',    // Level 8
-  'green',     // Level 9
-  'teal',      // Level 10
-  'emerald',   // Level 11
-  'sky',       // Level 12
-  'violet',    // Level 13
-  'fuchsia',   // Level 14
-  'rose',      // Level 15
-  'amber',     // Level 16
-  'lime',      // Level 17
-  'slate',     // Level 18
-  'zinc',      // Level 19
-  'stone',     // Level 20
-  'neutral',   // Level 21
-  'gray',      // Level 22
-  'cyan-600',  // Level 23
-  'blue-600',  // Level 24
-  'purple-600' // Level 25
+  'cyan',        // Level 1
+  'blue',        // Level 2
+  'indigo',      // Level 3
+  'purple',      // Level 4
+  'pink',        // Level 5
+  'red',         // Level 6
+  'orange',      // Level 7
+  'yellow',      // Level 8
+  'green',       // Level 9
+  'teal',        // Level 10
+  'emerald',     // Level 11
+  'sky',         // Level 12
+  'violet',      // Level 13
+  'fuchsia',     // Level 14
+  'rose',        // Level 15
+  'amber',       // Level 16
+  'lime',        // Level 17
+  'crimson',     // Level 18 
+  'gold',        // Level 19 
+  'neonBlue',    // Level 20 
+  'neonPink',    // Level 21 
+  'emerald-600', // Level 22 
+  'cyan-600',    // Level 23
+  'blue-600',    // Level 24
+  'purple-600'   // Level 25
 ];
 
 export const getLevelTheme = (level: number): Theme => {
@@ -219,33 +219,33 @@ export const HOLD_EARN_MULTIPLIER = 0.2;
 export const HOLD_ENERGY_DRAIN_PER_TICK = 1;
 export const WITHDRAWAL_COOLDOWN_MS = 86400000; 
 
-// Level balance requirements for 25 levels with progressive scaling
+// Level balance requirements for 25 levels with progressive scaling ending exactly at 1 Crore (10,000,000)
 export const LEVEL_BALANCE_REQUIREMENTS: { [key: number]: number } = {
-  1: 0,           // Level 1 - Starting level
-  2: 1000,        // Level 2 - 1K
-  3: 5000,        // Level 3 - 5K
-  4: 15000,       // Level 4 - 15K
-  5: 50000,       // Level 5 - 50K
-  6: 150000,      // Level 6 - 150K
-  7: 500000,      // Level 7 - 500K
-  8: 1500000,     // Level 8 - 1.5M
-  9: 5000000,     // Level 9 - 5M
-  10: 15000000,   // Level 10 - 15M
-  11: 50000000,   // Level 11 - 50M
-  12: 150000000,  // Level 12 - 150M
-  13: 500000000,  // Level 13 - 500M
-  14: 1500000000, // Level 14 - 1.5B
-  15: 5000000000, // Level 15 - 5B
-  16: 15000000000, // Level 16 - 15B
-  17: 50000000000, // Level 17 - 50B
-  18: 150000000000, // Level 18 - 150B
-  19: 500000000000, // Level 19 - 500B
-  20: 1500000000000, // Level 20 - 1.5T
-  21: 5000000000000, // Level 21 - 5T
-  22: 15000000000000, // Level 22 - 15T
-  23: 50000000000000, // Level 23 - 50T
-  24: 150000000000000, // Level 24 - 150T
-  25: 500000000000000  // Level 25 - 500T
+  1: 0,            // Level 1
+  2: 50,           // Level 2
+  3: 200,          // Level 3
+  4: 500,          // Level 4
+  5: 1000,         // Level 5
+  6: 2500,         // Level 6
+  7: 5000,         // Level 7
+  8: 10000,        // Level 8
+  9: 25000,        // Level 9
+  10: 50000,       // Level 10
+  11: 100000,      // Level 11
+  12: 200000,      // Level 12
+  13: 350000,      // Level 13
+  14: 500000,      // Level 14
+  15: 750000,      // Level 15
+  16: 1000000,     // Level 16 - 10 Lakhs
+  17: 1500000,     // Level 17
+  18: 2000000,     // Level 18
+  19: 3000000,     // Level 19
+  20: 4000000,     // Level 20
+  21: 5000000,     // Level 21 - 50 Lakhs
+  22: 6500000,     // Level 22
+  23: 8000000,     // Level 23
+  24: 9000000,     // Level 24
+  25: 10000000     // Level 25 - 1 Crore Max
 };
 
 // Calculate how many ads need to be watched to level up
