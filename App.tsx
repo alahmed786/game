@@ -28,6 +28,67 @@ declare global {
 
 const ADMIN_ID = "702954043";
 
+// --- Season 2 Completion Screen ---
+const Season2CompleteScreen: React.FC<{ onClose: () => void; isDarkMode: boolean }> = ({ onClose, isDarkMode }) => (
+  <div className="fixed inset-0 z-[4000] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl animate-fade-in">
+    <div className={`relative w-full max-w-md rounded-[2rem] p-8 text-center shadow-[0_0_100px_rgba(168,85,247,0.5)] overflow-hidden ${isDarkMode ? 'bg-gradient-to-br from-purple-900/90 to-indigo-900/90' : 'bg-gradient-to-br from-purple-100 to-indigo-100'}`}>
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+      
+      <div className="relative z-10">
+        <div className="w-32 h-32 mx-auto mb-6 animate-bounce">
+          <div className="w-full h-full rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center justify-center text-6xl shadow-[0_0_50px_rgba(255,215,0,0.5)]">
+            👑
+          </div>
+        </div>
+        
+        <h1 className={`text-4xl font-black uppercase tracking-widest mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">
+            SEASON 1
+          </span>
+          <br />
+          COMPLETE!
+        </h1>
+        
+        <p className={`text-lg mb-6 ${isDarkMode ? 'text-purple-200' : 'text-purple-800'}`}>
+          Congratulations, Commander! You've mastered the cosmos.
+        </p>
+        
+        <div className={`p-6 rounded-2xl mb-8 ${isDarkMode ? 'bg-black/30' : 'bg-white/30'} backdrop-blur-sm`}>
+          <p className="text-sm mb-4">Your rewards for reaching the pinnacle:</p>
+          <div className="flex justify-center gap-4">
+            <div className="text-center">
+              <div className="text-3xl mb-1">⭐</div>
+              <div className="text-xs opacity-80">1000 Stars</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl mb-1">🪐</div>
+              <div className="text-xs opacity-80">1M Stardust</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl mb-1">🏆</div>
+              <div className="text-xs opacity-80">Legend Title</div>
+            </div>
+          </div>
+        </div>
+        
+        <p className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-yellow-400' : 'text-orange-600'}`}>
+          SEASON 2 COMING SOON
+        </p>
+        <p className={`text-sm mb-8 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          The next cosmic adventure awaits. Stay tuned for new galaxies, upgrades, and challenges!
+        </p>
+        
+        <button
+          onClick={onClose}
+          className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black uppercase tracking-widest rounded-xl shadow-lg transform hover:scale-105 transition-all"
+        >
+          Continue Exploring
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 // --- Maintenance Screen ---
 const MaintenanceScreen: React.FC<{ endTime: number; onFinished: () => void; isDarkMode: boolean }> = ({ endTime, onFinished, isDarkMode }) => {
   const [timeLeft, setTimeLeft] = useState("");
@@ -112,7 +173,6 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
         { q: "What are Stars?", a: "Premium currency used to purchase elite Fleet Upgrades and special Stellar Deals." }
     ];
 
-    // ✅ FIX: Safely copy email to clipboard to avoid Telegram Webview URL scheme blocks
     const handleContactUs = () => {
         const email = "network.captchacash@gmail.com";
         navigator.clipboard.writeText(email).then(() => {
@@ -131,7 +191,6 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
         <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in pb-0 sm:pb-6 px-0 sm:px-4">
             <div className={`w-full max-w-md h-[85vh] sm:h-auto sm:max-h-[85vh] rounded-t-3xl sm:rounded-3xl p-6 flex flex-col shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#0f172a] border border-slate-800' : 'bg-white border border-slate-200'}`}>
                 
-                {/* Header */}
                 <div className="flex justify-between items-center mb-6">
                     <h2 className={`text-xl font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Commander Profile</h2>
                     <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">
@@ -141,7 +200,6 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
 
                 <div className="flex-1 overflow-y-auto pr-2 hide-scrollbar flex flex-col gap-6">
                     
-                    {/* User Info Card */}
                     <div className={`p-4 rounded-2xl flex items-center gap-4 ${isDarkMode ? 'bg-slate-900/50 border border-slate-800' : 'bg-slate-50 border border-slate-200'}`}>
                         <div className={`w-14 h-14 rounded-xl p-[2px] bg-gradient-to-br from-${theme}-400 to-purple-500 shrink-0`}>
                             <img src={player.photoUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${player.username}`} alt="Avatar" className="w-full h-full rounded-lg bg-slate-100 dark:bg-slate-800" />
@@ -154,7 +212,6 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
                         </div>
                     </div>
 
-                    {/* Support & Contact */}
                     <div className="flex flex-col gap-3">
                         <h3 className={`text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Support & Help</h3>
                         <button onClick={handleContactUs} className={`w-full p-4 rounded-xl flex items-center justify-between transition-colors ${isDarkMode ? 'bg-blue-900/20 hover:bg-blue-900/40 border border-blue-500/30' : 'bg-blue-50 hover:bg-blue-100 border border-blue-200'}`}>
@@ -169,7 +226,6 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
                         </button>
                     </div>
 
-                    {/* FAQ */}
                     <div className="flex flex-col gap-3">
                         <h3 className={`text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Frequently Asked Questions</h3>
                         <div className="flex flex-col gap-2">
@@ -192,7 +248,6 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
                         </div>
                     </div>
 
-                    {/* Danger Zone */}
                     <div className="flex flex-col gap-3 mt-4 pt-6 border-t border-red-900/30">
                         <h3 className="text-xs font-bold uppercase tracking-widest text-red-500">Danger Zone</h3>
                         {!confirmDelete ? (
@@ -219,10 +274,10 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; onDelete: ()
     );
 };
 
-
 const App: React.FC = () => {
   const [showIntro, setShowIntro] = useState(true);
   const [view, setView] = useState<View>('Earn');
+  const [showSeason2Complete, setShowSeason2Complete] = useState(false);
   
   const [adminConfig, setAdminConfig] = useState<AdminConfig>(INITIAL_ADMIN_CONFIG);
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
@@ -266,12 +321,13 @@ const App: React.FC = () => {
 
   const [canSave, setCanSave] = useState(false);
   
-  // ✅ FIX: Lock variable to prevent Supabase auto-save loop after account deletion
   const isDeletingRef = useRef(false);
 
   const passiveUpdateRef = useRef<number>(0);
   const lastPassiveTimeRef = useRef<number | undefined>(undefined);
   const holdIntervalRef = useRef<number | null>(null);
+  const energyRegenIntervalRef = useRef<number | null>(null);
+  const lastEnergyUpdateRef = useRef<number>(Date.now());
 
   const playerRef = useRef<Player | null>(null);
   const upgradesRef = useRef<Upgrade[]>(INITIAL_UPGRADES);
@@ -280,6 +336,39 @@ const App: React.FC = () => {
     playerRef.current = player;
     upgradesRef.current = upgrades;
   }, [player, upgrades]);
+
+  // --- FIXED: Energy regeneration that works offline ---
+  useEffect(() => {
+    const regenerateEnergy = () => {
+      const now = Date.now();
+      if (lastEnergyUpdateRef.current) {
+        const deltaTime = (now - lastEnergyUpdateRef.current) / 1000; // Convert to seconds
+        
+        setPlayer(prev => {
+          if (!prev || prev.isBanned || isDeletingRef.current) return prev;
+          
+          const newEnergy = Math.min(prev.maxEnergy, prev.currentEnergy + (ENERGY_REGEN_RATE * deltaTime));
+          lastEnergyUpdateRef.current = now;
+          
+          return { ...prev, currentEnergy: newEnergy, lastUpdate: now };
+        });
+      } else {
+        lastEnergyUpdateRef.current = now;
+      }
+    };
+
+    // Run immediately to catch up from any offline period
+    regenerateEnergy();
+
+    // Set up interval for continuous regeneration
+    energyRegenIntervalRef.current = window.setInterval(regenerateEnergy, 1000); // Update every second
+
+    return () => {
+      if (energyRegenIntervalRef.current) {
+        clearInterval(energyRegenIntervalRef.current);
+      }
+    };
+  }, []); // Empty dependency array - runs once on mount
 
   const toggleThemeMode = () => {
     setIsDarkMode(prev => {
@@ -475,16 +564,24 @@ const App: React.FC = () => {
                      setUpgrades(mergedUpgrades);
                 }
 
+                // FIXED: Proper offline earnings calculation with energy regeneration
                 if (parsedPlayer.hasOfflineEarnings && parsedPlayer.passivePerHour > 0) {
                     const now = Date.now();
                     const lastUpdate = parsedPlayer.lastUpdate || now;
                     const secondsOffline = (now - lastUpdate) / 1000;
                     
-                    if (secondsOffline > 300) {
+                    if (secondsOffline > 300) { // More than 5 minutes offline
                         const offlineIncome = (parsedPlayer.passivePerHour / 3600) * secondsOffline;
                         if (!isNaN(offlineIncome) && offlineIncome > 0) {
-                            setOfflineEarnings(offlineIncome); 
+                            setOfflineEarnings(offlineIncome);
                         }
+                        
+                        // FIXED: Also regenerate energy while offline
+                        const offlineEnergyRegen = ENERGY_REGEN_RATE * secondsOffline;
+                        parsedPlayer.currentEnergy = Math.min(
+                            parsedPlayer.maxEnergy, 
+                            parsedPlayer.currentEnergy + offlineEnergyRegen
+                        );
                     }
                 }
 
@@ -556,7 +653,6 @@ const App: React.FC = () => {
       }
   };
 
-  // ✅ FIX: Respect the isDeletingRef lock so we don't accidentally save while deleting!
   useEffect(() => {
       if (!canSave) return;
       const saveInterval = setInterval(() => {
@@ -590,8 +686,16 @@ const App: React.FC = () => {
       return () => clearInterval(interval);
   }, [player?.dailyCipherClaimed]);
 
+  // FIXED: Level up to 25 with season 2 message
   useEffect(() => {
     if (!player) return;
+    
+    // Check if reached level 25
+    if (player.level >= 25) {
+      setShowSeason2Complete(true);
+      return;
+    }
+    
     const currentLevel = player.level;
     const nextLevelRequirement = LEVEL_BALANCE_REQUIREMENTS[currentLevel];
     const requiredAds = calculateLevelUpAdsReq(currentLevel);
@@ -649,8 +753,8 @@ const App: React.FC = () => {
           .reduce((sum, boost) => sum + (boost as { pph: number }).pph, prev.passivePerHour); 
         
         const income = (totalPassivePerHour / 3600) * deltaTime;
-        const newEnergy = Math.min(prev.maxEnergy, prev.currentEnergy + (ENERGY_REGEN_RATE * deltaTime));
-        return { ...prev, balance: prev.balance + income, currentEnergy: newEnergy, lastUpdate: Date.now(), activeBoosts };
+        // Energy is now handled by separate interval
+        return { ...prev, balance: prev.balance + income, lastUpdate: Date.now(), activeBoosts };
       });
     }
     lastPassiveTimeRef.current = time;
@@ -965,24 +1069,19 @@ const App: React.FC = () => {
     if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
   };
 
-  // ✅ FIX: Securly Delete Account Logic
   const handleDeleteAccount = async () => {
       if (!player) return;
       
-      // Stop the auto-saver from running to prevent the account from respawning
       isDeletingRef.current = true;
       setCanSave(false); 
 
       try {
-          // Permanently erase the row from Supabase Database
           const { error } = await supabase.from('players').delete().eq('telegramid', player.telegramId);
           if (error) throw error;
           
-          // Clear all local web app data cache
           localStorage.clear();
           sessionStorage.clear();
           
-          // Show alert and close/refresh WebApp
           if (window.Telegram?.WebApp?.showAlert) {
               window.Telegram.WebApp.showAlert("Account successfully deleted. The app will now reload.", () => {
                   window.location.replace(window.location.pathname + "?t=" + Date.now());
@@ -1131,6 +1230,13 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-[100dvh] overflow-hidden relative">
       
+      {showSeason2Complete && (
+        <Season2CompleteScreen 
+          onClose={() => setShowSeason2Complete(false)} 
+          isDarkMode={isDarkMode} 
+        />
+      )}
+
       {isProfileModalVisible && (
           <ProfileModal 
               player={player} 
@@ -1155,7 +1261,7 @@ const App: React.FC = () => {
           </div>
       )}
 
-      {showLevelAlert && (
+      {showLevelAlert && player.level < 25 && (
           <div className="absolute top-[80px] left-4 right-4 z-[100] pointer-events-auto">
              <div className={`bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-${theme}-400 dark:border-${theme}-500/80 shadow-[0_0_25px_0px_var(--tw-shadow-color)] shadow-${theme}-400/50 dark:shadow-${theme}-500/40 p-4 rounded-2xl flex items-center gap-3 animate-slide-down-fade`}>
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 animate-pulse flex-shrink-0">
