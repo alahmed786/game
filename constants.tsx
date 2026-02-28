@@ -1,33 +1,81 @@
 import { Upgrade, Booster, DailyReward, Task, StellarDeal, Theme, AdminConfig } from './types';
 
-// Theme Configurations
+// Theme Configurations - Extended with more colors for 25 levels
 export const THEME_CONFIG: Record<Theme, { primary: string; secondary: string }> = {
   cyan: { primary: 'rgba(56, 189, 248, 0.2)', secondary: 'rgba(167, 139, 250, 0.15)' },
-  purple: { primary: 'rgba(168, 85, 247, 0.25)', secondary: 'rgba(236, 72, 153, 0.2)' },
-  orange: { primary: 'rgba(249, 115, 22, 0.25)', secondary: 'rgba(234, 179, 8, 0.2)' },
-  rose: { primary: 'rgba(244, 63, 94, 0.25)', secondary: 'rgba(139, 92, 246, 0.2)' },
-  emerald: { primary: 'rgba(16, 185, 129, 0.25)', secondary: 'rgba(56, 189, 248, 0.2)' },
+  blue: { primary: 'rgba(59, 130, 246, 0.2)', secondary: 'rgba(37, 99, 235, 0.15)' },
+  indigo: { primary: 'rgba(99, 102, 241, 0.2)', secondary: 'rgba(79, 70, 229, 0.15)' },
+  purple: { primary: 'rgba(168, 85, 247, 0.25)', secondary: 'rgba(147, 51, 234, 0.2)' },
+  pink: { primary: 'rgba(236, 72, 153, 0.25)', secondary: 'rgba(219, 39, 119, 0.2)' },
+  red: { primary: 'rgba(239, 68, 68, 0.25)', secondary: 'rgba(220, 38, 38, 0.2)' },
+  orange: { primary: 'rgba(249, 115, 22, 0.25)', secondary: 'rgba(234, 88, 12, 0.2)' },
+  yellow: { primary: 'rgba(250, 204, 21, 0.25)', secondary: 'rgba(202, 138, 4, 0.2)' },
+  green: { primary: 'rgba(34, 197, 94, 0.25)', secondary: 'rgba(22, 163, 74, 0.2)' },
+  teal: { primary: 'rgba(20, 184, 166, 0.25)', secondary: 'rgba(13, 148, 136, 0.2)' },
+  emerald: { primary: 'rgba(16, 185, 129, 0.25)', secondary: 'rgba(5, 150, 105, 0.2)' },
+  sky: { primary: 'rgba(14, 165, 233, 0.2)', secondary: 'rgba(2, 132, 199, 0.15)' },
+  violet: { primary: 'rgba(139, 92, 246, 0.25)', secondary: 'rgba(124, 58, 237, 0.2)' },
+  fuchsia: { primary: 'rgba(217, 70, 239, 0.25)', secondary: 'rgba(192, 38, 211, 0.2)' },
+  rose: { primary: 'rgba(244, 63, 94, 0.25)', secondary: 'rgba(225, 29, 72, 0.2)' },
+  amber: { primary: 'rgba(245, 158, 11, 0.25)', secondary: 'rgba(217, 119, 6, 0.2)' },
+  lime: { primary: 'rgba(132, 204, 22, 0.25)', secondary: 'rgba(101, 163, 13, 0.2)' },
+  slate: { primary: 'rgba(100, 116, 139, 0.2)', secondary: 'rgba(71, 85, 105, 0.15)' },
+  zinc: { primary: 'rgba(113, 113, 122, 0.2)', secondary: 'rgba(82, 82, 91, 0.15)' },
+  stone: { primary: 'rgba(120, 113, 108, 0.2)', secondary: 'rgba(87, 83, 78, 0.15)' },
+  neutral: { primary: 'rgba(115, 115, 115, 0.2)', secondary: 'rgba(82, 82, 82, 0.15)' },
+  gray: { primary: 'rgba(107, 114, 128, 0.2)', secondary: 'rgba(75, 85, 99, 0.15)' },
+  'cyan-600': { primary: 'rgba(8, 145, 178, 0.2)', secondary: 'rgba(14, 116, 144, 0.15)' },
+  'blue-600': { primary: 'rgba(37, 99, 235, 0.2)', secondary: 'rgba(29, 78, 216, 0.15)' },
+  'purple-600': { primary: 'rgba(147, 51, 234, 0.25)', secondary: 'rgba(126, 34, 206, 0.2)' },
 };
+
+// Theme colors for each level (1-25)
+const LEVEL_THEMES: Theme[] = [
+  'cyan',      // Level 1
+  'blue',      // Level 2
+  'indigo',    // Level 3
+  'purple',    // Level 4
+  'pink',      // Level 5
+  'red',       // Level 6
+  'orange',    // Level 7
+  'yellow',    // Level 8
+  'green',     // Level 9
+  'teal',      // Level 10
+  'emerald',   // Level 11
+  'sky',       // Level 12
+  'violet',    // Level 13
+  'fuchsia',   // Level 14
+  'rose',      // Level 15
+  'amber',     // Level 16
+  'lime',      // Level 17
+  'slate',     // Level 18
+  'zinc',      // Level 19
+  'stone',     // Level 20
+  'neutral',   // Level 21
+  'gray',      // Level 22
+  'cyan-600',  // Level 23
+  'blue-600',  // Level 24
+  'purple-600' // Level 25
+];
 
 export const getLevelTheme = (level: number): Theme => {
-  if (level < 3) return 'cyan';
-  if (level < 5) return 'purple';
-  if (level < 7) return 'emerald';
-  if (level < 9) return 'orange';
-  return 'rose';
+  // Cap at level 25 (array index 24)
+  const index = Math.min(level - 1, LEVEL_THEMES.length - 1);
+  return LEVEL_THEMES[index];
 };
 
-// Rank System
+// Rank System - Updated for up to level 25
 export const getRankName = (level: number): string => {
-  if (level >= 50) return 'ALIEN OVERLORD';
-  if (level >= 40) return 'CELESTIAL TITAN';
-  if (level >= 30) return 'QUANTUM MONARCH';
-  if (level >= 20) return 'NEBULA LORD';
-  if (level >= 15) return 'COSMIC ADMIRAL';
-  if (level >= 10) return 'GALAXY RANGER';
-  if (level >= 7) return 'FLEET CAPTAIN';
-  if (level >= 4) return 'STAR PILOT';
-  if (level >= 2) return 'VOID SCOUT';
+  if (level >= 25) return 'GALACTIC EMPEROR';
+  if (level >= 22) return 'COSMIC OVERLORD';
+  if (level >= 19) return 'NEBULA TITAN';
+  if (level >= 16) return 'STAR SOVEREIGN';
+  if (level >= 13) return 'VOID MONARCH';
+  if (level >= 10) return 'QUANTUM COMMANDER';
+  if (level >= 8) return 'ASTRO KNIGHT';
+  if (level >= 6) return 'SPACE CAPTAIN';
+  if (level >= 4) return 'ORBIT PILOT';
+  if (level >= 2) return 'COSMIC CADET';
   return 'SPACE CADET';
 };
 
@@ -171,21 +219,43 @@ export const HOLD_EARN_MULTIPLIER = 0.2;
 export const HOLD_ENERGY_DRAIN_PER_TICK = 1;
 export const WITHDRAWAL_COOLDOWN_MS = 86400000; 
 
-const generateLevelRequirements = (): number[] => {
-  const levels = [0, 1000, 5000, 10000]; 
-  const growthFactor = 1.16;
-  for (let i = 4; i < 50; i++) {
-    const nextReq = Math.floor(levels[i - 1] * growthFactor);
-    levels.push(nextReq);
-  }
-  levels[49] = 10000000; 
-  return levels;
+// Level balance requirements for 25 levels with progressive scaling
+export const LEVEL_BALANCE_REQUIREMENTS: { [key: number]: number } = {
+  1: 0,           // Level 1 - Starting level
+  2: 1000,        // Level 2 - 1K
+  3: 5000,        // Level 3 - 5K
+  4: 15000,       // Level 4 - 15K
+  5: 50000,       // Level 5 - 50K
+  6: 150000,      // Level 6 - 150K
+  7: 500000,      // Level 7 - 500K
+  8: 1500000,     // Level 8 - 1.5M
+  9: 5000000,     // Level 9 - 5M
+  10: 15000000,   // Level 10 - 15M
+  11: 50000000,   // Level 11 - 50M
+  12: 150000000,  // Level 12 - 150M
+  13: 500000000,  // Level 13 - 500M
+  14: 1500000000, // Level 14 - 1.5B
+  15: 5000000000, // Level 15 - 5B
+  16: 15000000000, // Level 16 - 15B
+  17: 50000000000, // Level 17 - 50B
+  18: 150000000000, // Level 18 - 150B
+  19: 500000000000, // Level 19 - 500B
+  20: 1500000000000, // Level 20 - 1.5T
+  21: 5000000000000, // Level 21 - 5T
+  22: 15000000000000, // Level 22 - 15T
+  23: 50000000000000, // Level 23 - 50T
+  24: 150000000000000, // Level 24 - 150T
+  25: 500000000000000  // Level 25 - 500T
 };
-export const LEVEL_BALANCE_REQUIREMENTS = generateLevelRequirements();
 
+// Calculate how many ads need to be watched to level up
 export const calculateLevelUpAdsReq = (level: number): number => {
-    const index = (level - 1) % 5;
-    return (index + 1) * 2;
+    if (level >= 25) return 0; // No ads needed for max level
+    
+    // Progressive ad requirements: more ads needed for higher levels
+    const baseAds = 2;
+    const extraAds = Math.floor((level - 1) / 3); // +1 ad every 3 levels
+    return Math.min(baseAds + extraAds, 8); // Cap at 8 ads maximum
 };
 
 export const BOOSTERS: Booster[] = [
@@ -229,3 +299,14 @@ export const INITIAL_TASKS: Task[] = [
 ];
 
 export const AD_COOLDOWN = 60000;
+
+// Season 2 message for level 25 completion
+export const SEASON_2_MESSAGE = {
+  title: 'SEASON 1 COMPLETE!',
+  message: 'Congratulations, Commander! You have mastered all 25 levels. Season 2 is coming soon with new galaxies, upgrades, and challenges!',
+  rewards: {
+    stars: 1000,
+    stardust: 1000000,
+    title: 'GALACTIC EMPEROR'
+  }
+};
