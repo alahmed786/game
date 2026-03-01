@@ -1,11 +1,6 @@
 import React from 'react';
 import { Player } from '../types';
-import { LEVEL_BALANCE_REQUIREMENTS } from '../constants';
-
-const RANKS = [
-  "Novice", "Space Cadet", "Explorer", "Commander", "Captain", 
-  "Admiral", "Warlord", "Conqueror", "Overlord", "Celestial"
-];
+import { LEVEL_BALANCE_REQUIREMENTS, getRankName } from '../constants'; // ✅ Imported the correct Rank logic
 
 // Smart formatter to prevent huge numbers from breaking the UI layout
 const formatBalance = (num: number) => {
@@ -21,23 +16,23 @@ interface StatsHeaderProps {
   theme: string;
   onOpenAdmin?: () => void;
   showAdminLock?: boolean;
-  onOpenProfile?: () => void; // ✅ NEW: Prop to open profile
+  onOpenProfile?: () => void;
 }
 
 const StatsHeader: React.FC<StatsHeaderProps> = ({ player, animateBalance, theme, onOpenAdmin, showAdminLock, onOpenProfile }) => {
   if (!player) return null;
 
-  const currentLevelIndex = Math.max(0, player.level - 1);
-  const rankName = RANKS[currentLevelIndex] || 'Galactic Legend';
+  // ✅ Pulls the dynamic rank based on your updated 25-level system
+  const rankName = getRankName(player.level);
   
-  const nextLevelReq = LEVEL_BALANCE_REQUIREMENTS[player.level];
-  const prevLevelReq = player.level === 1 ? 0 : LEVEL_BALANCE_REQUIREMENTS[player.level - 1];
+  // ✅ FIX: Strict logic to only look at the NEXT level's requirement
+  const nextLevelReq = LEVEL_BALANCE_REQUIREMENTS[player.level + 1];
   
   let progressPercent = 100;
   if (nextLevelReq) {
-      const levelTotal = nextLevelReq - prevLevelReq;
-      const currentProgress = player.balance - prevLevelReq;
-      progressPercent = Math.min(100, Math.max(0, (currentProgress / levelTotal) * 100));
+      // ✅ FIX: Progress is strictly based on (Current Balance / Target Goal).
+      // If a user withdraws everything, their progress simply drops to 0%, but their LEVEL stays exactly the same!
+      progressPercent = Math.min(100, Math.max(0, (player.balance / nextLevelReq) * 100));
   }
 
   return (
@@ -47,7 +42,7 @@ const StatsHeader: React.FC<StatsHeaderProps> = ({ player, animateBalance, theme
         
         <div className="flex items-center justify-between min-w-0">
           
-          {/* Left: Profile & Level Section (NOW CLICKABLE) */}
+          {/* Left: Profile & Level Section (CLICKABLE) */}
           <button 
             onClick={onOpenProfile}
             className="flex items-center gap-2.5 min-w-0 shrink text-left active:scale-95 transition-transform hover:opacity-80 rounded-xl outline-none"
