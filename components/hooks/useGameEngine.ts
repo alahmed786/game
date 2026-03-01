@@ -145,9 +145,14 @@ export const useGameEngine = () => {
     const userData = tg?.initDataUnsafe?.user;
     const startParam = tg?.initDataUnsafe?.start_param; 
     
-    // Fallback ID ensures dev testing doesn't collide with the ghost unknown_user account
-    const fallbackId = 'dev_' + Math.random().toString(36).substr(2, 9);
-    const telegramId = userData?.id?.toString() || (process.env.NODE_ENV === 'development' ? fallbackId : 'unknown_user');
+    // ✅ FIX 1: Stable fallback ID. Do NOT use Math.random() here, it causes infinite ghost accounts on reload!
+    const telegramId = userData?.id?.toString() || (process.env.NODE_ENV === 'development' ? 'local_dev_user_1' : 'unknown_user_error');
+    
+    // If we somehow get the error ID in production, we should warn the user.
+    if (telegramId === 'unknown_user_error' && process.env.NODE_ENV !== 'development') {
+        console.error("Critical Error: Telegram ID is missing. The user might have opened the link outside of Telegram.");
+    }
+
     const username = userData?.username || userData?.first_name || 'SpaceCadet';
 
     const createNewPlayer = (): Player => ({
@@ -171,13 +176,12 @@ export const useGameEngine = () => {
                 if (globalSettings.dailyRewards) setDailyRewards(globalSettings.dailyRewards);
                 
                 if (globalSettings.upgrades && globalSettings.upgrades.length > 0) {
-                    // ✅ BUG FIX: Sanitize global upgrades so NO ONE accidentally gets maxed out baseline upgrades!
                     currentGlobalUpgrades = globalSettings.upgrades.map((gUpg: any) => {
                          const initialMatch = INITIAL_UPGRADES.find(i => i.id === gUpg.id);
                          return {
                              ...gUpg,
-                             level: 0, // ALWAYS start baseline at 0
-                             cost: initialMatch ? initialMatch.cost : gUpg.cost // ALWAYS start at baseline cost
+                             level: 0, 
+                             cost: initialMatch ? initialMatch.cost : gUpg.cost 
                          };
                     });
                 }
@@ -197,7 +201,8 @@ export const useGameEngine = () => {
                 const remotePlayer = userResult.data;
                 const parsedPlayer: Player = {
                     telegramId: remotePlayer.telegramid, username: remotePlayer.username, balance: Number(remotePlayer.balance), 
-                    level: remotePlayer.level, stars: remotePlayer.stars, referralCount: remotePlayer.referralcount || 0,
+                    level: remotePlayer.level || 1, // ✅ FIX 2: Ensure fallback to Level 1 if corrupted
+                    stars: remotePlayer.stars, referralCount: remotePlayer.referralcount || 0,
                     invitedBy: remotePlayer.invitedby || remotePlayer.invitedBy, ...remotePlayer.gamestate,
                     photoUrl: userData?.photo_url || remotePlayer.gamestate?.photoUrl, lastCipherClaimed: remotePlayer.gamestate?.lastCipherClaimed || null
                 };
@@ -296,6 +301,11 @@ export const useGameEngine = () => {
   useEffect(() => {
     if (!player) return;
     const currentLevel = player.level;
+    
+    // Safety check: Ensure level doesn't exceed max configured level
+    const maxConfiguredLevel = Math.max(...Object.keys(LEVEL_BALANCE_REQUIREMENTS).map(Number));
+    if (currentLevel >= maxConfiguredLevel) return; // Already at max level
+
     const nextLevelRequirement = LEVEL_BALANCE_REQUIREMENTS[currentLevel];
     const requiredAds = calculateLevelUpAdsReq(currentLevel);
     
@@ -536,7 +546,7 @@ export const useGameEngine = () => {
     if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
   };
 
-  // ✅ BUG FIX: Safely delete user, clear local storage, and FORCE a close/reload so they don't get stuck in a ghost account!
+  // ✅ FIX 3: Native Telegram close() method to force a truly fresh session on next load
   const handleDeleteAccount = async () => {
       if (!player) return;
       isDeletingRef.current = true; setCanSave(false); 
@@ -550,7 +560,7 @@ export const useGameEngine = () => {
           // @ts-ignore
           if (window.Telegram?.WebApp?.close) { 
               // @ts-ignore
-              window.Telegram.WebApp.showAlert("Account permanently deleted. The app will now close.", () => { 
+              window.Telegram.WebApp.showAlert("Account permanently deleted. The app will now close. Restart the bot to create a new account.", () => { 
                   // @ts-ignore
                   window.Telegram.WebApp.close(); 
               }); 
