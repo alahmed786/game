@@ -144,7 +144,10 @@ export const useGameEngine = () => {
 
     const userData = tg?.initDataUnsafe?.user;
     const startParam = tg?.initDataUnsafe?.start_param; 
-    const telegramId = userData?.id?.toString() || (process.env.NODE_ENV === 'development' ? 'dev_user_123' : 'unknown_user');
+    
+    // Fallback ID ensures dev testing doesn't collide with the ghost unknown_user account
+    const fallbackId = 'dev_' + Math.random().toString(36).substr(2, 9);
+    const telegramId = userData?.id?.toString() || (process.env.NODE_ENV === 'development' ? fallbackId : 'unknown_user');
     const username = userData?.username || userData?.first_name || 'SpaceCadet';
 
     const createNewPlayer = (): Player => ({
@@ -160,12 +163,24 @@ export const useGameEngine = () => {
         try {
             let currentGlobalUpgrades = INITIAL_UPGRADES;
             const globalSettings = await fetchGameSettings();
+            
             if (globalSettings) {
                 if (globalSettings.tasks) setTasks(globalSettings.tasks);
                 if (globalSettings.stellarDeals) setStellarDeals(globalSettings.stellarDeals);
                 if (globalSettings.adminConfig) setAdminConfig(globalSettings.adminConfig);
                 if (globalSettings.dailyRewards) setDailyRewards(globalSettings.dailyRewards);
-                if (globalSettings.upgrades && globalSettings.upgrades.length > 0) currentGlobalUpgrades = globalSettings.upgrades;
+                
+                if (globalSettings.upgrades && globalSettings.upgrades.length > 0) {
+                    // ✅ BUG FIX: Sanitize global upgrades so NO ONE accidentally gets maxed out baseline upgrades!
+                    currentGlobalUpgrades = globalSettings.upgrades.map((gUpg: any) => {
+                         const initialMatch = INITIAL_UPGRADES.find(i => i.id === gUpg.id);
+                         return {
+                             ...gUpg,
+                             level: 0, // ALWAYS start baseline at 0
+                             cost: initialMatch ? initialMatch.cost : gUpg.cost // ALWAYS start at baseline cost
+                         };
+                    });
+                }
             }
             setUpgrades(currentGlobalUpgrades);
 
@@ -521,16 +536,27 @@ export const useGameEngine = () => {
     if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
   };
 
+  // ✅ BUG FIX: Safely delete user, clear local storage, and FORCE a close/reload so they don't get stuck in a ghost account!
   const handleDeleteAccount = async () => {
       if (!player) return;
       isDeletingRef.current = true; setCanSave(false); 
       try {
           const { error } = await supabase.from('players').delete().eq('telegramid', player.telegramId);
           if (error) throw error;
-          localStorage.clear(); sessionStorage.clear();
+          
+          localStorage.clear(); 
+          sessionStorage.clear();
+          
           // @ts-ignore
-          if (window.Telegram?.WebApp?.showAlert) { window.Telegram.WebApp.showAlert("Account successfully deleted. The app will now reload.", () => { window.location.replace(window.location.pathname + "?t=" + Date.now()); }); } 
-          else { window.location.replace(window.location.pathname + "?t=" + Date.now()); }
+          if (window.Telegram?.WebApp?.close) { 
+              // @ts-ignore
+              window.Telegram.WebApp.showAlert("Account permanently deleted. The app will now close.", () => { 
+                  // @ts-ignore
+                  window.Telegram.WebApp.close(); 
+              }); 
+          } else { 
+              window.location.replace(window.location.pathname + "?t=" + Date.now()); 
+          }
       } catch (e) {
           console.error("Failed to delete account", e); alert("Failed to delete account. Please try again.");
           isDeletingRef.current = false; setCanSave(true);
