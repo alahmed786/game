@@ -1,7 +1,7 @@
 // Level balance requirements for 25 levels 
 // Adjusted to ensure Level 1 is a starting point and Level 2 requires effort.
 export const LEVEL_BALANCE_REQUIREMENTS: { [key: number]: number } = {
-  1: 0,            // Level 1: Starting point (Novice)
+  1: 2500,            // Level 1: Starting point (Novice)
   2: 2500,         // Level 2: First Milestone
   3: 7500,         // Level 3
   4: 15000,        // Level 4
