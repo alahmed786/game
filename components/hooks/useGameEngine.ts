@@ -145,10 +145,8 @@ export const useGameEngine = () => {
     const userData = tg?.initDataUnsafe?.user;
     const startParam = tg?.initDataUnsafe?.start_param; 
     
-    // ✅ FIX 1: Stable fallback ID. Do NOT use Math.random() here, it causes infinite ghost accounts on reload!
     const telegramId = userData?.id?.toString() || (process.env.NODE_ENV === 'development' ? 'local_dev_user_1' : 'unknown_user_error');
     
-    // If we somehow get the error ID in production, we should warn the user.
     if (telegramId === 'unknown_user_error' && process.env.NODE_ENV !== 'development') {
         console.error("Critical Error: Telegram ID is missing. The user might have opened the link outside of Telegram.");
     }
@@ -201,7 +199,7 @@ export const useGameEngine = () => {
                 const remotePlayer = userResult.data;
                 const parsedPlayer: Player = {
                     telegramId: remotePlayer.telegramid, username: remotePlayer.username, balance: Number(remotePlayer.balance), 
-                    level: remotePlayer.level || 1, // ✅ FIX 2: Ensure fallback to Level 1 if corrupted
+                    level: remotePlayer.level || 1, 
                     stars: remotePlayer.stars, referralCount: remotePlayer.referralcount || 0,
                     invitedBy: remotePlayer.invitedby || remotePlayer.invitedBy, ...remotePlayer.gamestate,
                     photoUrl: userData?.photo_url || remotePlayer.gamestate?.photoUrl, lastCipherClaimed: remotePlayer.gamestate?.lastCipherClaimed || null
@@ -298,15 +296,16 @@ export const useGameEngine = () => {
       return () => clearInterval(interval);
   }, [player?.dailyCipherClaimed]);
 
+  // ✅ BUG FIX: Check requirements for the NEXT level (currentLevel + 1), not the current level!
   useEffect(() => {
     if (!player) return;
     const currentLevel = player.level;
     
-    // Safety check: Ensure level doesn't exceed max configured level
     const maxConfiguredLevel = Math.max(...Object.keys(LEVEL_BALANCE_REQUIREMENTS).map(Number));
-    if (currentLevel >= maxConfiguredLevel) return; // Already at max level
+    if (currentLevel >= maxConfiguredLevel) return; 
 
-    const nextLevelRequirement = LEVEL_BALANCE_REQUIREMENTS[currentLevel];
+    // Look at the NEXT level's cost to see if we should level up
+    const nextLevelRequirement = LEVEL_BALANCE_REQUIREMENTS[currentLevel + 1];
     const requiredAds = calculateLevelUpAdsReq(currentLevel);
     
     if (nextLevelRequirement !== undefined && player.balance >= nextLevelRequirement) {
@@ -546,7 +545,6 @@ export const useGameEngine = () => {
     if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
   };
 
-  // ✅ FIX 3: Native Telegram close() method to force a truly fresh session on next load
   const handleDeleteAccount = async () => {
       if (!player) return;
       isDeletingRef.current = true; setCanSave(false); 
