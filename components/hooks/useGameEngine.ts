@@ -296,7 +296,7 @@ export const useGameEngine = () => {
       return () => clearInterval(interval);
   }, [player?.dailyCipherClaimed]);
 
-  // ✅ BUG FIX: Check requirements for the NEXT level (currentLevel + 1), not the current level!
+  // ✅ FIXED LEVEL LOGIC: Now checks NEXT level requirement
   useEffect(() => {
     if (!player) return;
     const currentLevel = player.level;
@@ -304,22 +304,27 @@ export const useGameEngine = () => {
     const maxConfiguredLevel = Math.max(...Object.keys(LEVEL_BALANCE_REQUIREMENTS).map(Number));
     if (currentLevel >= maxConfiguredLevel) return; 
 
-    // Look at the NEXT level's cost to see if we should level up
+    // FIXED: Check the balance requirement for the NEXT level (current + 1)
     const nextLevelRequirement = LEVEL_BALANCE_REQUIREMENTS[currentLevel + 1];
     const requiredAds = calculateLevelUpAdsReq(currentLevel);
     
+    // If the requirement for level 2 is e.g. 5000, a new player with 0 balance won't bypass
     if (nextLevelRequirement !== undefined && player.balance >= nextLevelRequirement) {
         if (player.levelUpAdsWatched >= requiredAds) {
-            const updated = { ...player, level: player.level + 1, levelUpAdsWatched: 0 };
+            const updated = { ...player, level: currentLevel + 1, levelUpAdsWatched: 0 };
             setPlayer(updated);
             if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
             lastNotifiedLevelRef.current = 0; 
         } else {
+            // Alert user they reached the balance for next level but need ads
             if (lastNotifiedLevelRef.current !== currentLevel) {
-                setShowLevelAlert(true); lastNotifiedLevelRef.current = currentLevel; setTimeout(() => setShowLevelAlert(false), 10000);
+                setShowLevelAlert(true); 
+                lastNotifiedLevelRef.current = currentLevel; 
+                setTimeout(() => setShowLevelAlert(false), 10000);
             }
         }
     }
+
     const newTheme = getLevelTheme(player.level);
     if (newTheme !== theme) {
       setTheme(newTheme);
