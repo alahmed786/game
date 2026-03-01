@@ -296,35 +296,49 @@ export const useGameEngine = () => {
       return () => clearInterval(interval);
   }, [player?.dailyCipherClaimed]);
 
-  // ✅ FIXED LEVEL LOGIC: Now checks NEXT level requirement
+  // ✅ FIXED LEVEL LOGIC: Now properly handles new players with zero balance
   useEffect(() => {
     if (!player) return;
+    
     const currentLevel = player.level;
-    
     const maxConfiguredLevel = Math.max(...Object.keys(LEVEL_BALANCE_REQUIREMENTS).map(Number));
-    if (currentLevel >= maxConfiguredLevel) return; 
-
-    // FIXED: Check the balance requirement for the NEXT level (current + 1)
-    const nextLevelRequirement = LEVEL_BALANCE_REQUIREMENTS[currentLevel + 1];
-    const requiredAds = calculateLevelUpAdsReq(currentLevel);
     
-    // If the requirement for level 2 is e.g. 5000, a new player with 0 balance won't bypass
-    if (nextLevelRequirement !== undefined && player.balance >= nextLevelRequirement) {
-        if (player.levelUpAdsWatched >= requiredAds) {
-            const updated = { ...player, level: currentLevel + 1, levelUpAdsWatched: 0 };
-            setPlayer(updated);
-            if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
-            lastNotifiedLevelRef.current = 0; 
-        } else {
-            // Alert user they reached the balance for next level but need ads
-            if (lastNotifiedLevelRef.current !== currentLevel) {
-                setShowLevelAlert(true); 
-                lastNotifiedLevelRef.current = currentLevel; 
-                setTimeout(() => setShowLevelAlert(false), 10000);
-            }
+    // If player is already at max level, nothing to do
+    if (currentLevel >= maxConfiguredLevel) return;
+
+    // Get the requirement for the NEXT level
+    const nextLevel = currentLevel + 1;
+    const nextLevelRequirement = LEVEL_BALANCE_REQUIREMENTS[nextLevel];
+    
+    // If next level doesn't have a requirement (shouldn't happen), return
+    if (nextLevelRequirement === undefined) return;
+
+    // Check if player has enough balance for next level
+    // For level 1 -> level 2, requirement might be 5000, so new player with 0 balance won't bypass
+    if (player.balance >= nextLevelRequirement) {
+      const requiredAds = calculateLevelUpAdsReq(currentLevel);
+      
+      if (player.levelUpAdsWatched >= requiredAds) {
+        // Level up!
+        const updated = { ...player, level: nextLevel, levelUpAdsWatched: 0 };
+        setPlayer(updated);
+        if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
+        lastNotifiedLevelRef.current = 0;
+        
+        // Show level up notification
+        setShowLevelAlert(true);
+        setTimeout(() => setShowLevelAlert(false), 3000);
+      } else {
+        // Alert user they reached the balance for next level but need ads
+        if (lastNotifiedLevelRef.current !== currentLevel) {
+          setShowLevelAlert(true); 
+          lastNotifiedLevelRef.current = currentLevel; 
+          setTimeout(() => setShowLevelAlert(false), 10000);
         }
+      }
     }
 
+    // Update theme based on current level
     const newTheme = getLevelTheme(player.level);
     if (newTheme !== theme) {
       setTheme(newTheme);
