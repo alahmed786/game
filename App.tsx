@@ -72,24 +72,72 @@ const MaintenanceScreen: React.FC<{ endTime: number; onFinished: () => void; isD
   );
 };
 
-// --- Offline Earnings Modal ---
+// --- Offline Earnings Modal (PREMIUM UI UPGRADE) ---
 const OfflineEarningsModal: React.FC<{ amount: number; onClaim: () => void; isDarkMode: boolean }> = ({ amount, onClaim, isDarkMode }) => (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-fade-in">
-        <div className={`relative w-full max-w-sm rounded-[2rem] p-8 text-center shadow-[0_0_50px_rgba(168,85,247,0.3)] overflow-hidden ${isDarkMode ? 'bg-[#0f172a] border border-purple-500/30' : 'bg-white border border-purple-200'}`}>
-            <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-purple-500/20 to-transparent pointer-events-none"></div>
-            <div className="w-24 h-24 mx-auto bg-purple-500/10 border border-purple-500/30 rounded-full flex items-center justify-center text-5xl mb-6 shadow-inner animate-[spin_10s_linear_infinite]">🌌</div>
-            <h2 className={`text-2xl font-black uppercase tracking-widest mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Wormhole Secured</h2>
-            <p className={`text-sm mb-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Your offline drones have returned from the void with harvested stardust.</p>
-            <div className="flex items-center justify-center gap-2 mb-8 bg-purple-500/10 py-4 rounded-xl border border-purple-500/20">
-                <span className="text-2xl drop-shadow-sm">🪐</span>
-                <span className="text-3xl font-black font-mono text-purple-400 tracking-wider">+{Math.floor(amount).toLocaleString()}</span>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-fade-in">
+        <div className={`relative w-full max-w-sm rounded-[2.5rem] p-1 text-center overflow-hidden shadow-[0_0_80px_rgba(139,92,246,0.2)] ${isDarkMode ? 'bg-gradient-to-b from-slate-800 to-slate-950' : 'bg-gradient-to-b from-slate-100 to-white'}`}>
+            
+            {/* Inner Border/Card */}
+            <div className={`relative rounded-[2.3rem] p-8 h-full w-full ${isDarkMode ? 'bg-[#0b1121]' : 'bg-white'}`}>
+                
+                {/* Background glowing orbs */}
+                <div className="absolute -top-20 -left-20 w-40 h-40 bg-purple-500/20 rounded-full blur-[60px] pointer-events-none"></div>
+                <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-indigo-500/20 rounded-full blur-[60px] pointer-events-none"></div>
+
+                {/* Animated Orbital Graphic */}
+                <div className="relative w-28 h-28 mx-auto mb-8 mt-2">
+                    <div className="absolute inset-0 bg-gradient-to-tr from-purple-500 to-indigo-500 rounded-full animate-ping opacity-20"></div>
+                    {/* Spinning Tech Rings */}
+                    <div className="absolute inset-2 bg-gradient-to-tr from-purple-600/50 to-indigo-600/50 rounded-full animate-[spin_4s_linear_infinite] border border-purple-400/50 border-t-transparent"></div>
+                    <div className="absolute inset-4 bg-gradient-to-bl from-indigo-500/50 to-purple-500/50 rounded-full animate-[spin_3s_linear_infinite_reverse] border border-indigo-400/50 border-b-transparent"></div>
+                    
+                    <div className={`absolute inset-0 flex items-center justify-center text-5xl drop-shadow-[0_0_20px_rgba(168,85,247,0.8)]`}>
+                        🪐
+                    </div>
+                </div>
+
+                <h2 className={`text-2xl font-black uppercase tracking-widest mb-3 ${isDarkMode ? 'text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400' : 'text-slate-900'}`}>
+                    Yield Recovered
+                </h2>
+                
+                <p className={`text-xs font-medium leading-relaxed mb-8 px-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Your Auto-Miner fleet has successfully returned from the void with a payload of Stardust.
+                </p>
+                
+                {/* Amount Display Box */}
+                <div className={`relative mb-8 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/80 border-slate-700/50 shadow-inner' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-purple-500 to-indigo-500 text-[9px] font-black text-white uppercase tracking-widest rounded-full shadow-lg border border-indigo-400/50">
+                        Payload
+                    </div>
+                    <div className="flex items-center justify-center gap-3">
+                        <span className="text-3xl drop-shadow-sm animate-pulse" style={{ animationDuration: '2s' }}>✨</span>
+                        <span className={`text-4xl font-black font-mono tracking-wider ${isDarkMode ? 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]' : 'text-slate-900'}`}>
+                            +{Math.floor(amount).toLocaleString()}
+                        </span>
+                    </div>
+                </div>
+
+                <button 
+                    onClick={onClaim}
+                    className="group relative w-full py-4 rounded-xl font-black text-sm uppercase tracking-[0.2em] text-white shadow-[0_0_30px_rgba(99,102,241,0.4)] active:scale-95 transition-all overflow-hidden border border-indigo-400/50"
+                >
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 group-hover:from-purple-500 group-hover:to-indigo-500 transition-colors"></div>
+                    {/* Dynamic Shimmer effect on the button */}
+                    <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent group-hover:animate-[shimmer_1.5s_infinite]"></div>
+                    <span className="relative z-10 flex items-center justify-center gap-2">
+                        Transfer to Vault <span className="text-lg leading-none">🚀</span>
+                    </span>
+                </button>
             </div>
-            <button onClick={onClaim} className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black uppercase tracking-[0.2em] rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.4)] active:scale-95 transition-all">
-                Transfer to Vault
-            </button>
         </div>
+        <style>{`
+            @keyframes shimmer {
+                100% { transform: translateX(100%); }
+            }
+        `}</style>
     </div>
 );
+
 
 // --- Profile Modal (Delete Account Removed, Contact Us Fixed) ---
 const ProfileModal: React.FC<{ player: Player; onClose: () => void; isDarkMode: boolean; theme: string }> = ({ player, onClose, isDarkMode, theme }) => {
