@@ -145,12 +145,9 @@ export const useGameEngine = () => {
     const userData = tg?.initDataUnsafe?.user;
     const startParam = tg?.initDataUnsafe?.start_param; 
     
-    const telegramId = userData?.id?.toString() || (process.env.NODE_ENV === 'development' ? 'local_dev_user_1' : 'unknown_user_error');
-    
-    if (telegramId === 'unknown_user_error' && process.env.NODE_ENV !== 'development') {
-        console.error("Critical Error: Telegram ID is missing. The user might have opened the link outside of Telegram.");
-    }
-
+    // ✅ BUG FIX: Strict "GHOST_ACCOUNT" blocker to prevent database pollution on reload
+    const rawId = userData?.id?.toString();
+    const telegramId = rawId || (process.env.NODE_ENV === 'development' ? 'local_dev_user_1' : 'GHOST_ACCOUNT');
     const username = userData?.username || userData?.first_name || 'SpaceCadet';
 
     const createNewPlayer = (): Player => ({
@@ -163,6 +160,14 @@ export const useGameEngine = () => {
     });
 
     const initGame = async () => {
+        // ✅ GHOST ACCOUNT GUARD: If the app was reloaded and lost Telegram context, lock it down.
+        if (telegramId === 'GHOST_ACCOUNT') {
+            console.error("Critical Error: Telegram ID is missing. App is running in locked Ghost Mode to protect database.");
+            setPlayer(createNewPlayer());
+            setCanSave(false); 
+            return; // Stops initialization dead in its tracks
+        }
+
         try {
             let currentGlobalUpgrades = INITIAL_UPGRADES;
             const globalSettings = await fetchGameSettings();
@@ -199,7 +204,7 @@ export const useGameEngine = () => {
                 const remotePlayer = userResult.data;
                 const parsedPlayer: Player = {
                     telegramId: remotePlayer.telegramid, username: remotePlayer.username, balance: Number(remotePlayer.balance), 
-                    level: remotePlayer.level || 1, 
+                    level: Number(remotePlayer.level) || 1, 
                     stars: remotePlayer.stars, referralCount: remotePlayer.referralcount || 0,
                     invitedBy: remotePlayer.invitedby || remotePlayer.invitedBy, ...remotePlayer.gamestate,
                     photoUrl: userData?.photo_url || remotePlayer.gamestate?.photoUrl, lastCipherClaimed: remotePlayer.gamestate?.lastCipherClaimed || null
@@ -260,7 +265,10 @@ export const useGameEngine = () => {
   }, []);
 
   const savePlayerToSupabase = async (currentPlayer: Player, currentUpgrades: Upgrade[]) => {
-      if (!currentPlayer || !currentPlayer.telegramId) return;
+      // ✅ ADDITIONAL GUARD: Never allow ghost accounts or deleted sessions to touch the database!
+      if (!currentPlayer || !currentPlayer.telegramId || isDeletingRef.current) return;
+      if (currentPlayer.telegramId === 'GHOST_ACCOUNT') return; 
+
       const { telegramId, username, balance, level, stars, referralCount, invitedBy, isBanned, ...gameState } = currentPlayer;
       const fullGameState = { ...gameState, upgrades: currentUpgrades };
       try {
@@ -296,50 +304,36 @@ export const useGameEngine = () => {
       return () => clearInterval(interval);
   }, [player?.dailyCipherClaimed]);
 
-  // ✅ FIXED LEVEL LOGIC: Now properly handles new players with zero balance
   useEffect(() => {
     if (!player) return;
     
-    const currentLevel = player.level;
+    let currentLevel = Number(player.level);
+    if (isNaN(currentLevel) || currentLevel < 1) currentLevel = 1;
+    
     const maxConfiguredLevel = Math.max(...Object.keys(LEVEL_BALANCE_REQUIREMENTS).map(Number));
-    
-    // If player is already at max level, nothing to do
-    if (currentLevel >= maxConfiguredLevel) return;
+    if (currentLevel >= maxConfiguredLevel) return; 
 
-    // Get the requirement for the NEXT level
-    const nextLevel = currentLevel + 1;
-    const nextLevelRequirement = LEVEL_BALANCE_REQUIREMENTS[nextLevel];
+    const nextLevelRequirement = LEVEL_BALANCE_REQUIREMENTS[currentLevel + 1];
+    const requiredAds = calculateLevelUpAdsReq(currentLevel);
     
-    // If next level doesn't have a requirement (shouldn't happen), return
-    if (nextLevelRequirement === undefined) return;
-
-    // Check if player has enough balance for next level
-    // For level 1 -> level 2, requirement might be 5000, so new player with 0 balance won't bypass
-    if (player.balance >= nextLevelRequirement) {
-      const requiredAds = calculateLevelUpAdsReq(currentLevel);
-      
-      if (player.levelUpAdsWatched >= requiredAds) {
-        // Level up!
-        const updated = { ...player, level: nextLevel, levelUpAdsWatched: 0 };
-        setPlayer(updated);
-        if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
-        lastNotifiedLevelRef.current = 0;
-        
-        // Show level up notification
-        setShowLevelAlert(true);
-        setTimeout(() => setShowLevelAlert(false), 3000);
-      } else {
-        // Alert user they reached the balance for next level but need ads
-        if (lastNotifiedLevelRef.current !== currentLevel) {
-          setShowLevelAlert(true); 
-          lastNotifiedLevelRef.current = currentLevel; 
-          setTimeout(() => setShowLevelAlert(false), 10000);
+    if (typeof nextLevelRequirement === 'number' && nextLevelRequirement > 0) {
+        if (player.balance >= nextLevelRequirement) {
+            if (player.levelUpAdsWatched >= requiredAds) {
+                const updated = { ...player, level: currentLevel + 1, levelUpAdsWatched: 0 };
+                setPlayer(updated);
+                if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
+                lastNotifiedLevelRef.current = 0; 
+            } else {
+                if (lastNotifiedLevelRef.current !== currentLevel) {
+                    setShowLevelAlert(true); 
+                    lastNotifiedLevelRef.current = currentLevel; 
+                    setTimeout(() => setShowLevelAlert(false), 10000);
+                }
+            }
         }
-      }
     }
 
-    // Update theme based on current level
-    const newTheme = getLevelTheme(player.level);
+    const newTheme = getLevelTheme(currentLevel);
     if (newTheme !== theme) {
       setTheme(newTheme);
       document.documentElement.style.setProperty('--bg-primary', THEME_CONFIG[newTheme].primary);
@@ -564,29 +558,37 @@ export const useGameEngine = () => {
     if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
   };
 
+  // ✅ BUG FIX: Brutal forced termination of the app when an account is deleted to prevent ghost records.
   const handleDeleteAccount = async () => {
       if (!player) return;
-      isDeletingRef.current = true; setCanSave(false); 
+      
+      // 1. Lock the save loop immediately
+      isDeletingRef.current = true; 
+      setCanSave(false); 
+      
       try {
+          // 2. Delete the user from Supabase Database completely
           const { error } = await supabase.from('players').delete().eq('telegramid', player.telegramId);
           if (error) throw error;
           
+          // 3. Purge all local cache
           localStorage.clear(); 
           sessionStorage.clear();
           
+          // 4. Force the Telegram WebApp to close instantly instead of reloading
           // @ts-ignore
           if (window.Telegram?.WebApp?.close) { 
               // @ts-ignore
-              window.Telegram.WebApp.showAlert("Account permanently deleted. The app will now close. Restart the bot to create a new account.", () => { 
-                  // @ts-ignore
-                  window.Telegram.WebApp.close(); 
-              }); 
+              window.Telegram.WebApp.close(); 
           } else { 
-              window.location.replace(window.location.pathname + "?t=" + Date.now()); 
+              // If outside telegram, force a blank page to kill the React process
+              window.location.href = "about:blank";
           }
       } catch (e) {
-          console.error("Failed to delete account", e); alert("Failed to delete account. Please try again.");
-          isDeletingRef.current = false; setCanSave(true);
+          console.error("Failed to delete account", e); 
+          alert("Failed to delete account. Please try again.");
+          isDeletingRef.current = false; 
+          setCanSave(true);
       }
   };
 
