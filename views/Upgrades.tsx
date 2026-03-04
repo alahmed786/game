@@ -135,7 +135,6 @@ const StellarDealCard: React.FC<{ deal: StellarDeal, player: Player, onBuy: (dea
   );
 };
 
-// Reusable Upgrade Card Component
 const UpgradeCard: React.FC<{ upgrade: Upgrade, player: Player, theme: string, onBuy: (id: string) => void }> = ({ upgrade, player, theme, onBuy }) => {
   const isUnlocked = !upgrade.unlockLevel || player.level >= upgrade.unlockLevel;
   const isStarCost = upgrade.costType === 'stars';
@@ -162,6 +161,17 @@ const UpgradeCard: React.FC<{ upgrade: Upgrade, player: Player, theme: string, o
                 </div>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-tight max-w-xs">{upgrade.description}</p>
+            
+            {/* ✅ NEW: Offline Mining Visual Badge for Auto-Miners */}
+            {upgrade.profitPerHour ? (
+                <div className="mt-1.5 flex items-center gap-1.5 bg-emerald-500/10 w-max px-2 py-0.5 rounded border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="text-[8px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                        Mines Online & Offline
+                    </span>
+                </div>
+            ) : null}
+
             {!isUnlocked && upgrade.unlockLevel && (
                 <p className="text-xs text-red-500 dark:text-red-400 font-bold mt-1">Requires Level {upgrade.unlockLevel}</p>
             )}
@@ -194,7 +204,6 @@ const UpgradeCard: React.FC<{ upgrade: Upgrade, player: Player, theme: string, o
     </div>
   );
 };
-
 
 const UpgradesView: React.FC<UpgradesViewProps> = ({ upgrades, stellarDeals, player, onBuy, onBuyStellarDeal, isDealAdModalVisible, dealToProcess, onConfirmDealAd, onCancelDealAd, theme, onShowAd }) => {
   const marketUpgrades = upgrades.filter(u => u.category === 'Market');
