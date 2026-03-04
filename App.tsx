@@ -20,19 +20,29 @@ import { playStardustSound } from './utils/audio';
 import { showAd } from './utils/ads';
 import { supabase, fetchLeaderboard, processReferral, fetchUserRank, fetchGameSettings } from './utils/supabase';
 
-declare global { interface Window { Telegram: any; } }
+declare global {
+  interface Window {
+    Telegram: any;
+  }
+}
+
 const ADMIN_ID = "702954043";
 
 // --- Maintenance Screen Modal ---
 const MaintenanceScreen: React.FC<{ endTime: number; onFinished: () => void; isDarkMode: boolean }> = ({ endTime, onFinished, isDarkMode }) => {
   const [timeLeft, setTimeLeft] = useState("");
+
   useEffect(() => {
     const timer = setInterval(() => {
       const now = Date.now();
       const diff = endTime - now;
-      if (diff <= 0) { clearInterval(timer); onFinished(); } 
-      else {
-        const h = Math.floor(diff / 3600000); const m = Math.floor((diff % 3600000) / 60000); const s = Math.floor((diff % 60000) / 1000);
+      if (diff <= 0) {
+        clearInterval(timer);
+        onFinished();
+      } else {
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
         setTimeLeft(`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`);
       }
     }, 1000);
@@ -44,12 +54,18 @@ const MaintenanceScreen: React.FC<{ endTime: number; onFinished: () => void; isD
       <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none"></div>
       <div className="absolute top-1/4 w-64 h-64 bg-orange-500/20 rounded-full blur-[100px] animate-pulse"></div>
       <div className="relative z-10 flex flex-col items-center">
-        <div className="w-24 h-24 bg-orange-500/10 border border-orange-500/30 rounded-2xl flex items-center justify-center mb-6 animate-bounce shadow-[0_0_30px_rgba(249,115,22,0.2)]"><span className="text-5xl">🚧</span></div>
+        <div className="w-24 h-24 bg-orange-500/10 border border-orange-500/30 rounded-2xl flex items-center justify-center mb-6 animate-bounce shadow-[0_0_30px_rgba(249,115,22,0.2)]">
+            <span className="text-5xl">🚧</span>
+        </div>
         <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 uppercase tracking-widest mb-3">System Offline</h1>
-        <p className={`text-sm mb-8 max-w-xs leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Our engineers are currently upgrading the quantum mainframe. Access will be automatically restored when the timer concludes.</p>
+        <p className={`text-sm mb-8 max-w-xs leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+           Our engineers are currently upgrading the quantum mainframe. Access will be automatically restored when the timer concludes.
+        </p>
         <div className="flex flex-col items-center">
             <span className={`text-[10px] font-bold uppercase tracking-[0.3em] mb-2 ${isDarkMode ? 'text-orange-500/70' : 'text-orange-600/70'}`}>Uplink Resumes In</span>
-            <div className={`px-8 py-4 rounded-xl font-mono text-3xl font-black tracking-wider shadow-inner ${isDarkMode ? 'bg-black/50 border border-orange-500/30 text-orange-400' : 'bg-orange-50 border border-orange-200 text-orange-600'}`}>{timeLeft || "00:00:00"}</div>
+            <div className={`px-8 py-4 rounded-xl font-mono text-3xl font-black tracking-wider shadow-inner ${isDarkMode ? 'bg-black/50 border border-orange-500/30 text-orange-400' : 'bg-orange-50 border border-orange-200 text-orange-600'}`}>
+                {timeLeft || "00:00:00"}
+            </div>
         </div>
       </div>
     </div>
@@ -93,7 +109,7 @@ const OfflineEarningsModal: React.FC<{ amount: number; onClaim: () => void; isDa
     </div>
 );
 
-// --- Profile Modal ---
+// --- Profile Modal (Delete Account Removed, Contact Us Fixed) ---
 const ProfileModal: React.FC<{ player: Player; onClose: () => void; isDarkMode: boolean; theme: string }> = ({ player, onClose, isDarkMode, theme }) => {
     const [openFaq, setOpenFaq] = useState<number | null>(null);
     const faqs = [
@@ -106,9 +122,21 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; isDarkMode: 
     const handleContactUs = () => {
         const email = "network.captchacash@gmail.com";
         try {
-            const textArea = document.createElement("textarea"); textArea.value = email; document.body.appendChild(textArea); textArea.select(); document.execCommand("copy"); document.body.removeChild(textArea);
-            if (window.Telegram?.WebApp?.showAlert) window.Telegram.WebApp.showAlert("Support email copied!\n\n" + email); else alert("Support email copied!\n\n" + email);
-        } catch (err) { prompt("Please copy our support email:", email); }
+            const textArea = document.createElement("textarea");
+            textArea.value = email;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textArea);
+
+            if (window.Telegram?.WebApp?.showAlert) {
+                window.Telegram.WebApp.showAlert("Support email copied!\n\n" + email);
+            } else {
+                alert("Support email copied!\n\n" + email);
+            }
+        } catch (err) {
+            prompt("Please copy our support email:", email);
+        }
     };
 
     return (
@@ -120,7 +148,9 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; isDarkMode: 
                 </div>
                 <div className="flex-1 overflow-y-auto pr-2 hide-scrollbar flex flex-col gap-6">
                     <div className={`p-4 rounded-2xl flex items-center gap-4 ${isDarkMode ? 'bg-slate-900/50 border border-slate-800' : 'bg-slate-50 border border-slate-200'}`}>
-                        <div className={`w-14 h-14 rounded-xl p-[2px] bg-gradient-to-br from-${theme}-400 to-purple-500 shrink-0`}><img src={player.photoUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${player.username}`} alt="Avatar" className="w-full h-full rounded-lg bg-slate-100 dark:bg-slate-800" /></div>
+                        <div className={`w-14 h-14 rounded-xl p-[2px] bg-gradient-to-br from-${theme}-400 to-purple-500 shrink-0`}>
+                            <img src={player.photoUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${player.username}`} alt="Avatar" className="w-full h-full rounded-lg bg-slate-100 dark:bg-slate-800" />
+                        </div>
                         <div className="flex flex-col overflow-hidden">
                             <span className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Username</span>
                             <span className={`font-black text-lg truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{player.username}</span>
@@ -131,7 +161,14 @@ const ProfileModal: React.FC<{ player: Player; onClose: () => void; isDarkMode: 
                     <div className="flex flex-col gap-3">
                         <h3 className={`text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Support & Help</h3>
                         <button onClick={handleContactUs} className={`w-full p-4 rounded-xl flex items-center justify-between transition-colors ${isDarkMode ? 'bg-blue-900/20 hover:bg-blue-900/40 border border-blue-500/30' : 'bg-blue-50 hover:bg-blue-100 border border-blue-200'}`}>
-                            <div className="flex items-center gap-3"><span className="text-xl">📧</span><div className="flex flex-col text-left"><span className={`font-bold text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>Contact Us</span><span className="text-[10px] text-slate-500">network.captchacash@gmail.com</span></div></div><span className="text-slate-400">📋 Copy</span>
+                            <div className="flex items-center gap-3">
+                                <span className="text-xl">📧</span>
+                                <div className="flex flex-col text-left">
+                                    <span className={`font-bold text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>Contact Us</span>
+                                    <span className="text-[10px] text-slate-500">network.captchacash@gmail.com</span>
+                                </div>
+                            </div>
+                            <span className="text-slate-400">📋 Copy</span>
                         </button>
                     </div>
                     <div className="flex flex-col gap-3">
@@ -184,7 +221,12 @@ const App: React.FC = () => {
   const lastNotifiedLevelRef = useRef<number>(0);
 
   const [theme, setTheme] = useState<Theme>('cyan');
-  const [isDarkMode, setIsDarkMode] = useState(() => { const savedTheme = localStorage.getItem('app_theme'); if (savedTheme !== null) return savedTheme === 'dark'; return true; }); 
+  
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+      const savedTheme = localStorage.getItem('app_theme');
+      if (savedTheme !== null) return savedTheme === 'dark';
+      return true; 
+  }); 
 
   const [dealToProcess, setDealToProcess] = useState<StellarDeal | null>(null);
   const [isDealAdModalVisible, setIsDealAdModalVisible] = useState(false);
@@ -199,14 +241,23 @@ const App: React.FC = () => {
   const playerRef = useRef<Player | null>(null);
   const upgradesRef = useRef<Upgrade[]>(INITIAL_UPGRADES);
 
-  useEffect(() => { playerRef.current = player; upgradesRef.current = upgrades; }, [player, upgrades]);
+  useEffect(() => {
+    playerRef.current = player;
+    upgradesRef.current = upgrades;
+  }, [player, upgrades]);
 
   const toggleThemeMode = () => {
     setIsDarkMode(prev => {
         const newMode = !prev;
-        if (newMode) { document.documentElement.classList.add('dark'); localStorage.setItem('app_theme', 'dark'); } 
-        else { document.documentElement.classList.remove('dark'); localStorage.setItem('app_theme', 'light'); }
-        const tg = window.Telegram?.WebApp; if (tg) tg.setHeaderColor(newMode ? '#030712' : '#f0f9ff'); 
+        if (newMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('app_theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('app_theme', 'light');
+        }
+        const tg = window.Telegram?.WebApp;
+        if (tg) tg.setHeaderColor(newMode ? '#030712' : '#f0f9ff'); 
         return newMode;
     });
   };
@@ -217,37 +268,56 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    const subscription = supabase.channel('public:players')
+    const subscription = supabase
+      .channel('public:players')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload: any) => {
         if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
            const newPlayer = payload.new;
            setAllPlayers(prev => {
               const filtered = prev.filter(p => p.telegramId !== newPlayer.telegramid);
-              const mappedPlayer: any = { telegramId: newPlayer.telegramid, username: newPlayer.username || 'Unknown', photoUrl: newPlayer.gamestate?.photoUrl || null, balance: newPlayer.balance, level: newPlayer.level, stars: newPlayer.stars, referralCount: newPlayer.referralcount };
+              const mappedPlayer: any = {
+                 telegramId: newPlayer.telegramid,
+                 username: newPlayer.username || 'Unknown',
+                 photoUrl: newPlayer.gamestate?.photoUrl || null,
+                 balance: newPlayer.balance,
+                 level: newPlayer.level,
+                 stars: newPlayer.stars,
+                 referralCount: newPlayer.referralcount
+              };
               return [...filtered, mappedPlayer].sort((a, b) => b.balance - a.balance);
            });
+
            setPlayer(prev => {
-                if (prev && prev.telegramId === newPlayer.telegramid && !isDeletingRef.current) { return { ...prev, referralCount: newPlayer.referralcount, stars: newPlayer.stars, level: newPlayer.level, balance: newPlayer.balance }; }
+                if (prev && prev.telegramId === newPlayer.telegramid && !isDeletingRef.current) {
+                    return { ...prev, referralCount: newPlayer.referralcount, stars: newPlayer.stars, level: newPlayer.level, balance: newPlayer.balance };
+                }
                 return prev;
            });
         }
-      }).subscribe();
+      })
+      .subscribe();
     return () => { supabase.removeChannel(subscription); };
   }, []);
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
     if (tg) {
-      const app = tg as any; app.ready(); app.expand(); app.enableClosingConfirmation();
-      const savedTheme = localStorage.getItem('app_theme'); let finalMode = true;
-      if (savedTheme !== null) finalMode = savedTheme === 'dark'; else if (app.colorScheme === 'light') finalMode = false;
+      const app = tg as any;
+      app.ready(); app.expand(); app.enableClosingConfirmation();
+      const savedTheme = localStorage.getItem('app_theme');
+      let finalMode = true;
+      if (savedTheme !== null) finalMode = savedTheme === 'dark';
+      else if (app.colorScheme === 'light') finalMode = false;
       setIsDarkMode(finalMode);
-      if (finalMode) document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark');
+      if (finalMode) document.documentElement.classList.add('dark');
+      else document.documentElement.classList.remove('dark');
       app.setHeaderColor(finalMode ? '#030712' : '#f0f9ff'); 
     }
 
     const userData = tg?.initDataUnsafe?.user;
     const startParam = tg?.initDataUnsafe?.start_param; 
+    
+    // GHOST ACCOUNT BLOCKER
     const rawId = userData?.id?.toString();
     const telegramId = rawId || (process.env.NODE_ENV === 'development' ? 'local_dev_user_1' : 'GHOST_ACCOUNT');
     const username = userData?.username || userData?.first_name || 'SpaceCadet';
@@ -262,7 +332,12 @@ const App: React.FC = () => {
     });
 
     const initGame = async () => {
-        if (telegramId === 'GHOST_ACCOUNT') { console.error("App locked."); setPlayer(createNewPlayer()); setCanSave(false); return; }
+        if (telegramId === 'GHOST_ACCOUNT') {
+            console.error("Critical Error: Telegram ID missing. App locked.");
+            setPlayer(createNewPlayer());
+            setCanSave(false); 
+            return;
+        }
 
         try {
             let currentGlobalUpgrades = INITIAL_UPGRADES;
@@ -282,7 +357,11 @@ const App: React.FC = () => {
             }
             setUpgrades(currentGlobalUpgrades);
 
-            const [userResult, leaderboardData] = await Promise.all([ supabase.from('players').select('*').eq('telegramid', telegramId).maybeSingle(), fetchLeaderboard() ]);
+            const [userResult, leaderboardData] = await Promise.all([
+                supabase.from('players').select('*').eq('telegramid', telegramId).maybeSingle(),
+                fetchLeaderboard()
+            ]);
+
             if (leaderboardData && leaderboardData.length > 0) setAllPlayers(leaderboardData as Player[]);
 
             let loadedPlayer: Player;
@@ -306,7 +385,7 @@ const App: React.FC = () => {
                      setUpgrades(mergedUpgrades);
                 }
 
-                // ✅ OFFLINE MINING FIX: 2 Minutes Threshold & Active Miner Logic
+                // ✅ 2-MINUTE OFFLINE MINING & CYCLE FIX
                 if (parsedPlayer.passivePerHour > 0 && parsedPlayer.activeAutoMiner) {
                     const now = Date.now();
                     const lastUpdate = parsedPlayer.lastUpdate || now;
@@ -315,7 +394,7 @@ const App: React.FC = () => {
                         const activeEndTime = Math.min(now, parsedPlayer.activeAutoMiner);
                         const secondsOffline = (activeEndTime - lastUpdate) / 1000;
                         
-                        // 🔥 Changed from 300 to 120 seconds (2 minutes!)
+                        // 120 seconds = 2 minutes threshold!
                         if (secondsOffline > 120) {
                             const offlineIncome = (parsedPlayer.passivePerHour / 3600) * secondsOffline;
                             if (!isNaN(offlineIncome) && offlineIncome > 0) setOfflineEarnings(offlineIncome); 
@@ -360,9 +439,12 @@ const App: React.FC = () => {
   }, []);
 
   const savePlayerToSupabase = async (currentPlayer: Player, currentUpgrades: Upgrade[]) => {
-      if (!currentPlayer || !currentPlayer.telegramId || isDeletingRef.current || currentPlayer.telegramId === 'GHOST_ACCOUNT') return;
+      if (!currentPlayer || !currentPlayer.telegramId) return;
+      if (currentPlayer.telegramId === 'GHOST_ACCOUNT') return;
+
       const { telegramId, username, balance, level, stars, referralCount, invitedBy, isBanned, ...gameState } = currentPlayer;
       const fullGameState = { ...gameState, upgrades: currentUpgrades };
+
       try {
           const cleanGameState = JSON.parse(JSON.stringify(fullGameState));
           await supabase.from('players').upsert({
@@ -374,7 +456,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
       if (!canSave) return;
-      const saveInterval = setInterval(() => { if (playerRef.current && !isDeletingRef.current) savePlayerToSupabase(playerRef.current, upgradesRef.current); }, 5000); 
+      const saveInterval = setInterval(() => {
+          if (playerRef.current && !isDeletingRef.current) savePlayerToSupabase(playerRef.current, upgradesRef.current);
+      }, 5000); 
       return () => clearInterval(saveInterval);
   }, [canSave]);
 
@@ -389,13 +473,17 @@ const App: React.FC = () => {
               if (currentDay > claimDay) setPlayer(p => p ? { ...p, dailyCipherClaimed: false } : p);
           }
       };
-      const interval = setInterval(checkMidnightReset, 60000); checkMidnightReset(); return () => clearInterval(interval);
+      const interval = setInterval(checkMidnightReset, 60000); 
+      checkMidnightReset();
+      return () => clearInterval(interval);
   }, [player?.dailyCipherClaimed]);
 
+  // LEVEL UP BUG FIX
   useEffect(() => {
     if (!player) return;
     let currentLevel = Number(player.level);
     if (isNaN(currentLevel) || currentLevel < 1) currentLevel = 1;
+    
     const maxConfiguredLevel = Math.max(...Object.keys(LEVEL_BALANCE_REQUIREMENTS).map(Number));
     if (currentLevel >= maxConfiguredLevel) return; 
 
@@ -407,13 +495,18 @@ const App: React.FC = () => {
             if (player.levelUpAdsWatched >= requiredAds) {
                 const updated = { ...player, level: currentLevel + 1, levelUpAdsWatched: 0 };
                 setPlayer(updated);
-                if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
+                savePlayerToSupabase(updated, upgradesRef.current);
                 lastNotifiedLevelRef.current = 0; 
             } else {
-                if (lastNotifiedLevelRef.current !== currentLevel) { setShowLevelAlert(true); lastNotifiedLevelRef.current = currentLevel; setTimeout(() => setShowLevelAlert(false), 10000); }
+                if (lastNotifiedLevelRef.current !== currentLevel) {
+                    setShowLevelAlert(true);
+                    lastNotifiedLevelRef.current = currentLevel;
+                    setTimeout(() => setShowLevelAlert(false), 10000);
+                }
             }
         }
     }
+
     const newTheme = getLevelTheme(currentLevel);
     if (newTheme !== theme) {
       setTheme(newTheme);
@@ -424,12 +517,18 @@ const App: React.FC = () => {
   
   useEffect(() => {
     const checkUrgency = () => {
-      if (player?.lastRewardClaimed) { const remainingTime = 86400000 - (Date.now() - player.lastRewardClaimed); setIsRewardUrgent(remainingTime > 0 && remainingTime < 3600000); }
+      if (player?.lastRewardClaimed) {
+        const timeSinceClaim = Date.now() - player.lastRewardClaimed;
+        const remainingTime = 86400000 - timeSinceClaim;
+        setIsRewardUrgent(remainingTime > 0 && remainingTime < 3600000); 
+      }
     };
-    checkUrgency(); const interval = setInterval(checkUrgency, 60000); return () => clearInterval(interval);
+    checkUrgency();
+    const interval = setInterval(checkUrgency, 60000); 
+    return () => clearInterval(interval);
   }, [player?.lastRewardClaimed]);
 
-  // ✅ PASSIVE INCOME UPDATE: Now respects the Miner Cycle Timer
+  // ✅ ACTIVE CYCLE PASSIVE INCOME TRACKER
   const updatePassiveIncome = useCallback((time: number) => {
     if (lastPassiveTimeRef.current !== undefined) {
       const deltaTime = (time - lastPassiveTimeRef.current) / 1000;
@@ -445,7 +544,7 @@ const App: React.FC = () => {
         if (prev.activeAutoMiner && prev.activeAutoMiner > now) {
             basePassive = prev.passivePerHour;
         } else if (prev.activeAutoMiner && prev.activeAutoMiner <= now) {
-            nextMinerState = null; // Auto-stops when the 4 hours end
+            nextMinerState = null; 
         }
 
         const totalPassivePerHour = basePassive + boostsPPH;
@@ -460,27 +559,32 @@ const App: React.FC = () => {
 
   useEffect(() => {
     passiveUpdateRef.current = requestAnimationFrame(updatePassiveIncome);
-    return () => { if (passiveUpdateRef.current) cancelAnimationFrame(passiveUpdateRef.current); if (holdIntervalRef.current) clearInterval(holdIntervalRef.current); };
+    return () => {
+      if (passiveUpdateRef.current) cancelAnimationFrame(passiveUpdateRef.current);
+      if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
+    };
   }, [updatePassiveIncome]);
 
   const handleClaimOfflineEarnings = () => {
       if (!player || !offlineEarnings) return;
       const updatedPlayer = { ...player, balance: player.balance + offlineEarnings, lastUpdate: Date.now() };
       setPlayer(updatedPlayer); setOfflineEarnings(null); triggerBalanceAnimation();
-      if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, upgradesRef.current);
+      savePlayerToSupabase(updatedPlayer, upgradesRef.current);
   };
 
   const handleHoldStart = () => {
-    if (holdIntervalRef.current || !player || player.currentEnergy <= 0 || player.isBanned || isDeletingRef.current) return;
+    if (holdIntervalRef.current || !player || player.currentEnergy <= 0 || player.isBanned) return;
     accumulatedHoldRewardRef.current = 0; setCurrentHoldAmount(0);
-    const activeCptBoost = player.activeBoosts.find(b => b.type === 'cpt' && b.expiresAt > Date.now());
+    const now = Date.now();
+    const activeCptBoost = player.activeBoosts.find(b => b.type === 'cpt' && b.expiresAt > now);
     const cptMultiplier = activeCptBoost ? (activeCptBoost as { multiplier: number }).multiplier : 1;
 
     holdIntervalRef.current = window.setInterval(() => {
       let earnings = 0;
       setPlayer(prev => {
         if (!prev || prev.currentEnergy <= 0) { handleHoldEnd(); return prev; }
-        earnings = (prev.coinsPerTap * cptMultiplier) * HOLD_EARN_MULTIPLIER * prev.holdMultiplier;
+        const effectiveCPT = prev.coinsPerTap * cptMultiplier;
+        earnings = effectiveCPT * HOLD_EARN_MULTIPLIER * prev.holdMultiplier;
         accumulatedHoldRewardRef.current += earnings; setCurrentHoldAmount(accumulatedHoldRewardRef.current);
         const newEnergy = Math.max(0, prev.currentEnergy - HOLD_ENERGY_DRAIN_PER_TICK);
         if (newEnergy === 0) handleHoldEnd();
@@ -503,26 +607,24 @@ const App: React.FC = () => {
     if (!player || !pendingHoldReward) return;
     const updated = { ...player, balance: player.balance + pendingHoldReward };
     setPlayer(updated); triggerBalanceAnimation(); setPendingHoldReward(null); setIsClaimModalVisible(false); accumulatedHoldRewardRef.current = 0;
-    if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
+    savePlayerToSupabase(updated, upgradesRef.current);
   };
 
   const handleCancelHoldReward = () => { setPendingHoldReward(null); setIsClaimModalVisible(false); accumulatedHoldRewardRef.current = 0; };
 
-  // ✅ ACTION: Toggle the Auto Miner Cycle
+  // ✅ ACTION: Toggle the Auto Miner Cycle (4 Hours)
   const handleToggleMiner = () => {
       if (!player || player.passivePerHour <= 0) return;
       const now = Date.now();
       let newActiveState: number | null = null;
       
-      // If inactive, start it for 4 HOURS (14400000 ms)
       if (!player.activeAutoMiner || player.activeAutoMiner <= now) {
-          newActiveState = now + 14400000; 
+          newActiveState = now + 14400000; // 4 Hours
       } 
-      // If active, hitting the button stops it (becomes null)
 
       const updated = { ...player, activeAutoMiner: newActiveState, lastUpdate: now };
       setPlayer(updated);
-      if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
+      savePlayerToSupabase(updated, upgradesRef.current);
   };
 
   const buyUpgrade = (upgradeId: string) => {
@@ -535,14 +637,14 @@ const App: React.FC = () => {
 
     const updatedPlayer = { ...player };
     if (isStarCost) updatedPlayer.stars -= upgrade.cost; else updatedPlayer.balance -= upgrade.cost;
+      
     updatedPlayer.passivePerHour += (upgrade.profitPerHour || 0);
     updatedPlayer.coinsPerTap += (upgrade.cptBoost || 0);
     updatedPlayer.holdMultiplier += (upgrade.holdMultiplierBoost || 0);
-    if (upgrade.id === 's5') updatedPlayer.hasOfflineEarnings = true;
 
     const newUpgrades = upgrades.map(u => u.id === upgradeId ? { ...u, level: u.level + 1, cost: Math.floor(u.cost * 1.6) } : u);
     setPlayer(updatedPlayer); setUpgrades(newUpgrades);
-    if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, newUpgrades);
+    savePlayerToSupabase(updatedPlayer, newUpgrades);
   };
 
   const processDealPurchase = (deal: StellarDeal) => {
@@ -565,15 +667,14 @@ const App: React.FC = () => {
         case 'free_upgrade':
           const availableUpgrades = upgrades.filter(u => u.level < u.maxLevel && (!u.unlockLevel || player.level >= u.unlockLevel));
           if (availableUpgrades.length > 0) {
-              const cheapest = availableUpgrades.reduce((prev, curr) => prev.cost < curr.cost ? prev : curr);
-              updatedPlayer.passivePerHour += (cheapest.profitPerHour || 0); updatedPlayer.coinsPerTap += (cheapest.cptBoost || 0); updatedPlayer.holdMultiplier += (cheapest.holdMultiplierBoost || 0);
-              if (cheapest.id === 's5') updatedPlayer.hasOfflineEarnings = true;
-              setUpgrades(prev => prev.map(u => u.id === cheapest.id ? { ...u, level: u.level + 1, cost: Math.floor(u.cost * 1.6) } : u));
+              const cheapestUpgrade = availableUpgrades.reduce((prev, curr) => prev.cost < curr.cost ? prev : curr);
+              updatedPlayer.passivePerHour += (cheapestUpgrade.profitPerHour || 0); updatedPlayer.coinsPerTap += (cheapestUpgrade.cptBoost || 0); updatedPlayer.holdMultiplier += (cheapestUpgrade.holdMultiplierBoost || 0);
+              setUpgrades(prevUpgrades => prevUpgrades.map(u => u.id === cheapestUpgrade.id ? { ...u, level: u.level + 1, cost: Math.floor(u.cost * 1.6) } : u));
           } break;
     }
+    
     if (deal.cooldown) updatedPlayer.lastDealPurchases = { ...updatedPlayer.lastDealPurchases, [deal.id]: Date.now() };
-    setPlayer(updatedPlayer);
-    if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, upgradesRef.current);
+    setPlayer(updatedPlayer); savePlayerToSupabase(updatedPlayer, upgradesRef.current);
   };
 
   const handleBuyStellarDeal = (deal: StellarDeal) => {
@@ -594,21 +695,19 @@ const App: React.FC = () => {
     if (reward.type === 'stars') updatedPlayer.stars += reward.amount;
     else { updatedPlayer.balance += (reward.amount * adminConfig.dailyRewardBase); triggerBalanceAnimation(); }
     updatedPlayer.lastRewardClaimed = Date.now(); updatedPlayer.consecutiveDays += 1;
-    setPlayer(updatedPlayer); setView('Earn');
-    if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, upgradesRef.current);
+    setPlayer(updatedPlayer); setView('Earn'); savePlayerToSupabase(updatedPlayer, upgradesRef.current);
   };
   
   const handleSolveCipher = () => {
     if (!player || player.dailyCipherClaimed) return;
     const updated = { ...player, balance: player.balance + adminConfig.dailyCipherReward, dailyCipherClaimed: true, lastCipherClaimed: Date.now() } as any;
-    setPlayer(updated); triggerBalanceAnimation(); setView('Earn');
-    if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
+    setPlayer(updated); triggerBalanceAnimation(); setView('Earn'); savePlayerToSupabase(updated, upgradesRef.current);
   };
 
   const handleActivateBooster = () => {
     if (!player) return;
     const updated = { ...player, currentEnergy: player.maxEnergy, lastBoosterClaimed: Date.now() };
-    setPlayer(updated); if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
+    setPlayer(updated); savePlayerToSupabase(updated, upgradesRef.current);
   };
 
   const handleWatchLevelUpAd = () => { setPlayer(p => p ? ({ ...p, levelUpAdsWatched: p.levelUpAdsWatched + 1 }) : null); };
@@ -622,8 +721,7 @@ const App: React.FC = () => {
     if (task.type === 'telegram') {
         if (pendingTasks.includes(task.id)) {
             const updatedPlayer = { ...player, balance: player.balance + task.reward, hasFollowedTelegram: true, taskProgress: { ...player.taskProgress, [task.id]: 1 } };
-            setPlayer(updatedPlayer); triggerBalanceAnimation(); setPendingTasks(prev => prev.filter(id => id !== task.id)); 
-            if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, upgradesRef.current);
+            setPlayer(updatedPlayer); triggerBalanceAnimation(); setPendingTasks(prev => prev.filter(id => id !== task.id)); savePlayerToSupabase(updatedPlayer, upgradesRef.current);
         } else {
             setPendingTasks(prev => [...new Set([...prev, task.id])]);
             if (targetUrl) { if (window.Telegram?.WebApp?.openTelegramLink) window.Telegram.WebApp.openTelegramLink(targetUrl); else if (window.Telegram?.WebApp?.openLink) window.Telegram.WebApp.openLink(targetUrl); else window.open(targetUrl, '_blank'); }
@@ -636,8 +734,7 @@ const App: React.FC = () => {
             updatedPlayer.taskProgress = { ...updatedPlayer.taskProgress, [task.id]: currentProgress + 1 };
             updatedPlayer.lastAdWatched = Date.now();
             if (updatedPlayer.taskProgress[task.id] >= (task.dailyLimit || 1)) { updatedPlayer.balance += task.reward; triggerBalanceAnimation(); }
-            if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, upgradesRef.current);
-            return updatedPlayer;
+            savePlayerToSupabase(updatedPlayer, upgradesRef.current); return updatedPlayer;
         });
     }
   };
@@ -649,8 +746,7 @@ const App: React.FC = () => {
     if (!task || code !== (task.secretCode || '1234') || !player) return false;
     const updatedPlayer = { ...player, balance: player.balance + task.reward };
     updatedPlayer.taskProgress = { ...updatedPlayer.taskProgress, [task.id]: (updatedPlayer.taskProgress[task.id] || 0) + 1 };
-    setPlayer(updatedPlayer); triggerBalanceAnimation(); setPendingTasks(prev => prev.filter(id => id !== taskId));
-    if (!isDeletingRef.current) savePlayerToSupabase(updatedPlayer, upgradesRef.current);
+    setPlayer(updatedPlayer); triggerBalanceAnimation(); setPendingTasks(prev => prev.filter(id => id !== taskId)); savePlayerToSupabase(updatedPlayer, upgradesRef.current);
     return true;
   };
   
@@ -658,8 +754,7 @@ const App: React.FC = () => {
     if (!player || (player.lastWithdrawalTime && Date.now() - player.lastWithdrawalTime < WITHDRAWAL_COOLDOWN_MS)) return; 
     const newWithdrawal: Withdrawal = { ...withdrawal, id: `wd_${Date.now()}`, timestamp: Date.now(), status: 'Pending', telegramId: player.telegramId, username: player.username };
     const updated = { ...player, balance: player.balance - withdrawal.amountStardust, withdrawalHistory: [newWithdrawal, ...player.withdrawalHistory], lastWithdrawalTime: Date.now() };
-    setPlayer(updated); setGlobalWithdrawals(prev => [newWithdrawal, ...prev]);
-    if (!isDeletingRef.current) savePlayerToSupabase(updated, upgradesRef.current);
+    setPlayer(updated); setGlobalWithdrawals(prev => [newWithdrawal, ...prev]); savePlayerToSupabase(updated, upgradesRef.current);
   };
 
   const renderView = () => {
@@ -668,6 +763,7 @@ const App: React.FC = () => {
         <EarnView player={player} onHoldStart={handleHoldStart} onHoldEnd={handleHoldEnd} floatingTexts={floatingTexts} onDailyRewardClick={() => setView('DailyReward')} onCipherClick={() => setView('DailyCipher')} isRewardAvailable={isRewardAvailable} onActivateBooster={handleActivateBooster} pendingHoldReward={pendingHoldReward} isClaimModalVisible={isClaimModalVisible} onClaimHoldReward={handleClaimHoldReward} onCancelHoldReward={handleCancelHoldReward} currentHoldAmount={currentHoldAmount} isRewardUrgent={isRewardUrgent} isCipherClaimed={player.dailyCipherClaimed} theme={theme} onShowAd={handleShowAd} isDarkMode={isDarkMode} toggleTheme={toggleThemeMode} />
       );
       case 'Upgrades': return (
+        // ✅ BUG FIX: onToggleMiner accurately passed to the UI View
         <UpgradesView upgrades={upgrades} stellarDeals={stellarDeals} player={player} onBuy={buyUpgrade} onBuyStellarDeal={handleBuyStellarDeal} isDealAdModalVisible={isDealAdModalVisible} dealToProcess={dealToProcess} onConfirmDealAd={handleConfirmDealAd} onCancelDealAd={() => setIsDealAdModalVisible(false)} theme={theme} onShowAd={handleShowAd} onToggleMiner={handleToggleMiner} />
       );
       case 'Tasks': return (
