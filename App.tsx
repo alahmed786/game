@@ -232,7 +232,6 @@ const App: React.FC = () => {
   const [isDealAdModalVisible, setIsDealAdModalVisible] = useState(false);
 
   const [canSave, setCanSave] = useState(false);
-  const isDeletingRef = useRef(false);
 
   const passiveUpdateRef = useRef<number>(0);
   const lastPassiveTimeRef = useRef<number | undefined>(undefined);
@@ -288,7 +287,7 @@ const App: React.FC = () => {
            });
 
            setPlayer(prev => {
-                if (prev && prev.telegramId === newPlayer.telegramid && !isDeletingRef.current) {
+                if (prev && prev.telegramId === newPlayer.telegramid) {
                     return { ...prev, referralCount: newPlayer.referralcount, stars: newPlayer.stars, level: newPlayer.level, balance: newPlayer.balance };
                 }
                 return prev;
@@ -317,7 +316,7 @@ const App: React.FC = () => {
     const userData = tg?.initDataUnsafe?.user;
     const startParam = tg?.initDataUnsafe?.start_param; 
     
-    // GHOST ACCOUNT BLOCKER
+    // ✅ FIX 1: GHOST ACCOUNT BLOCKER
     const rawId = userData?.id?.toString();
     const telegramId = rawId || (process.env.NODE_ENV === 'development' ? 'local_dev_user_1' : 'GHOST_ACCOUNT');
     const username = userData?.username || userData?.first_name || 'SpaceCadet';
@@ -332,6 +331,7 @@ const App: React.FC = () => {
     });
 
     const initGame = async () => {
+        // Stop ghost accounts from corrupting the DB on a bad reload
         if (telegramId === 'GHOST_ACCOUNT') {
             console.error("Critical Error: Telegram ID missing. App locked.");
             setPlayer(createNewPlayer());
@@ -368,13 +368,14 @@ const App: React.FC = () => {
 
             if (userResult.data) {
                 const remotePlayer = userResult.data;
-                const template = createNewPlayer();
+                const defaultPlayer = createNewPlayer();
                 
-                // ✅ BULLETPROOF STATE HYDRATION
-                // This ensures ALL nested arrays/objects (like activeBoosts) are safely initialized even on old accounts!
+                // ✅ FIX 2: THE CRASH HEALER (State Hydration Safety Net)
+                // This ensures old accounts missing these variables get safe [] defaults instead of undefined!
                 const parsedPlayer: Player = {
-                    ...template, 
+                    ...defaultPlayer, 
                     ...(remotePlayer.gamestate || {}),
+                    
                     telegramId: remotePlayer.telegramid, 
                     username: remotePlayer.username, 
                     balance: Number(remotePlayer.balance) || 0, 
@@ -385,7 +386,7 @@ const App: React.FC = () => {
                     photoUrl: userData?.photo_url || remotePlayer.gamestate?.photoUrl || undefined, 
                     lastCipherClaimed: remotePlayer.gamestate?.lastCipherClaimed || null,
                     
-                    // Crucial Arrays & Objects fallback so .filter() NEVER crashes!
+                    // Critical safety fallbacks
                     activeBoosts: remotePlayer.gamestate?.activeBoosts || [],
                     taskProgress: remotePlayer.gamestate?.taskProgress || {},
                     lastDealPurchases: remotePlayer.gamestate?.lastDealPurchases || {},
@@ -404,7 +405,7 @@ const App: React.FC = () => {
                      setUpgrades(mergedUpgrades);
                 }
 
-                // ✅ 2-MINUTE OFFLINE MINING & CYCLE FIX
+                // ✅ FIX 3: 2-MINUTE OFFLINE MINING & CYCLE
                 if (parsedPlayer.passivePerHour > 0 && parsedPlayer.activeAutoMiner) {
                     const now = Date.now();
                     const lastUpdate = parsedPlayer.lastUpdate || now;
@@ -413,7 +414,7 @@ const App: React.FC = () => {
                         const activeEndTime = Math.min(now, parsedPlayer.activeAutoMiner);
                         const secondsOffline = (activeEndTime - lastUpdate) / 1000;
                         
-                        if (secondsOffline > 120) {
+                        if (secondsOffline > 120) { // 2 Minutes Threshold!
                             const offlineIncome = (parsedPlayer.passivePerHour / 3600) * secondsOffline;
                             if (!isNaN(offlineIncome) && offlineIncome > 0) setOfflineEarnings(offlineIncome); 
                         }
@@ -458,7 +459,7 @@ const App: React.FC = () => {
 
   const savePlayerToSupabase = async (currentPlayer: Player, currentUpgrades: Upgrade[]) => {
       if (!currentPlayer || !currentPlayer.telegramId) return;
-      if (currentPlayer.telegramId === 'GHOST_ACCOUNT' || isDeletingRef.current) return;
+      if (currentPlayer.telegramId === 'GHOST_ACCOUNT') return;
 
       const { telegramId, username, balance, level, stars, referralCount, invitedBy, isBanned, ...gameState } = currentPlayer;
       const fullGameState = { ...gameState, upgrades: currentUpgrades };
@@ -475,7 +476,7 @@ const App: React.FC = () => {
   useEffect(() => {
       if (!canSave) return;
       const saveInterval = setInterval(() => {
-          if (playerRef.current && !isDeletingRef.current) savePlayerToSupabase(playerRef.current, upgradesRef.current);
+          if (playerRef.current) savePlayerToSupabase(playerRef.current, upgradesRef.current);
       }, 5000); 
       return () => clearInterval(saveInterval);
   }, [canSave]);
@@ -496,7 +497,7 @@ const App: React.FC = () => {
       return () => clearInterval(interval);
   }, [player?.dailyCipherClaimed]);
 
-  // LEVEL UP BUG FIX
+  // ✅ FIX 4: BULLETPROOF LEVEL UP MATH
   useEffect(() => {
     if (!player) return;
     let currentLevel = Number(player.level);
@@ -505,6 +506,7 @@ const App: React.FC = () => {
     const maxConfiguredLevel = Math.max(...Object.keys(LEVEL_BALANCE_REQUIREMENTS).map(Number));
     if (currentLevel >= maxConfiguredLevel) return; 
 
+    // +1 mathematically forces checking the NEXT level's requirement
     const nextLevelRequirement = LEVEL_BALANCE_REQUIREMENTS[currentLevel + 1];
     const requiredAds = calculateLevelUpAdsReq(currentLevel);
     
@@ -551,7 +553,7 @@ const App: React.FC = () => {
     if (lastPassiveTimeRef.current !== undefined) {
       const deltaTime = (time - lastPassiveTimeRef.current) / 1000;
       setPlayer(prev => {
-        if (!prev || prev.isBanned || isDeletingRef.current) return prev;
+        if (!prev || prev.isBanned) return prev;
         const now = Date.now();
         const activeBoosts = prev.activeBoosts.filter(boost => boost.expiresAt > now);
         const boostsPPH = activeBoosts.filter(boost => boost.type === 'passive_income').reduce((sum, boost) => sum + (boost as { pph: number }).pph, 0); 
@@ -630,7 +632,7 @@ const App: React.FC = () => {
 
   const handleCancelHoldReward = () => { setPendingHoldReward(null); setIsClaimModalVisible(false); accumulatedHoldRewardRef.current = 0; };
 
-  // ✅ ACTION: Toggle the Auto Miner Cycle (4 Hours)
+  // ✅ NEW ACTION: Toggle the Auto Miner Cycle (4 Hours)
   const handleToggleMiner = () => {
       if (!player || player.passivePerHour <= 0) return;
       const now = Date.now();
@@ -659,6 +661,10 @@ const App: React.FC = () => {
     updatedPlayer.passivePerHour += (upgrade.profitPerHour || 0);
     updatedPlayer.coinsPerTap += (upgrade.cptBoost || 0);
     updatedPlayer.holdMultiplier += (upgrade.holdMultiplierBoost || 0);
+    
+    // Auto-miners natively enable offline earnings tracking
+    if (upgrade.profitPerHour && upgrade.profitPerHour > 0) updatedPlayer.hasOfflineEarnings = true;
+    if (upgrade.id === 's5') updatedPlayer.hasOfflineEarnings = true;
 
     const newUpgrades = upgrades.map(u => u.id === upgradeId ? { ...u, level: u.level + 1, cost: Math.floor(u.cost * 1.6) } : u);
     setPlayer(updatedPlayer); setUpgrades(newUpgrades);
@@ -687,6 +693,10 @@ const App: React.FC = () => {
           if (availableUpgrades.length > 0) {
               const cheapestUpgrade = availableUpgrades.reduce((prev, curr) => prev.cost < curr.cost ? prev : curr);
               updatedPlayer.passivePerHour += (cheapestUpgrade.profitPerHour || 0); updatedPlayer.coinsPerTap += (cheapestUpgrade.cptBoost || 0); updatedPlayer.holdMultiplier += (cheapestUpgrade.holdMultiplierBoost || 0);
+              
+              if (cheapestUpgrade.profitPerHour && cheapestUpgrade.profitPerHour > 0) updatedPlayer.hasOfflineEarnings = true;
+              if (cheapestUpgrade.id === 's5') updatedPlayer.hasOfflineEarnings = true;
+
               setUpgrades(prevUpgrades => prevUpgrades.map(u => u.id === cheapestUpgrade.id ? { ...u, level: u.level + 1, cost: Math.floor(u.cost * 1.6) } : u));
           } break;
     }
@@ -781,6 +791,7 @@ const App: React.FC = () => {
         <EarnView player={player} onHoldStart={handleHoldStart} onHoldEnd={handleHoldEnd} floatingTexts={floatingTexts} onDailyRewardClick={() => setView('DailyReward')} onCipherClick={() => setView('DailyCipher')} isRewardAvailable={isRewardAvailable} onActivateBooster={handleActivateBooster} pendingHoldReward={pendingHoldReward} isClaimModalVisible={isClaimModalVisible} onClaimHoldReward={handleClaimHoldReward} onCancelHoldReward={handleCancelHoldReward} currentHoldAmount={currentHoldAmount} isRewardUrgent={isRewardUrgent} isCipherClaimed={player.dailyCipherClaimed} theme={theme} onShowAd={handleShowAd} isDarkMode={isDarkMode} toggleTheme={toggleThemeMode} />
       );
       case 'Upgrades': return (
+        // ✅ CRITICAL CONNECTION: onToggleMiner passed to the Upgrades view
         <UpgradesView upgrades={upgrades} stellarDeals={stellarDeals} player={player} onBuy={buyUpgrade} onBuyStellarDeal={handleBuyStellarDeal} isDealAdModalVisible={isDealAdModalVisible} dealToProcess={dealToProcess} onConfirmDealAd={handleConfirmDealAd} onCancelDealAd={() => setIsDealAdModalVisible(false)} theme={theme} onShowAd={handleShowAd} onToggleMiner={handleToggleMiner} />
       );
       case 'Tasks': return (
