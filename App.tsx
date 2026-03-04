@@ -368,11 +368,30 @@ const App: React.FC = () => {
 
             if (userResult.data) {
                 const remotePlayer = userResult.data;
+                const template = createNewPlayer();
+                
+                // ✅ BULLETPROOF STATE HYDRATION
+                // This ensures ALL nested arrays/objects (like activeBoosts) are safely initialized even on old accounts!
                 const parsedPlayer: Player = {
-                    telegramId: remotePlayer.telegramid, username: remotePlayer.username, balance: Number(remotePlayer.balance), 
-                    level: Number(remotePlayer.level) || 1, stars: remotePlayer.stars, referralCount: remotePlayer.referralcount || 0,
-                    invitedBy: remotePlayer.invitedby || remotePlayer.invitedBy, ...remotePlayer.gamestate,
-                    photoUrl: userData?.photo_url || remotePlayer.gamestate?.photoUrl, lastCipherClaimed: remotePlayer.gamestate?.lastCipherClaimed || null
+                    ...template, 
+                    ...(remotePlayer.gamestate || {}),
+                    telegramId: remotePlayer.telegramid, 
+                    username: remotePlayer.username, 
+                    balance: Number(remotePlayer.balance) || 0, 
+                    level: Number(remotePlayer.level) || 1, 
+                    stars: Number(remotePlayer.stars) || 0, 
+                    referralCount: Number(remotePlayer.referralcount) || 0,
+                    invitedBy: remotePlayer.invitedby || remotePlayer.invitedBy || undefined,
+                    photoUrl: userData?.photo_url || remotePlayer.gamestate?.photoUrl || undefined, 
+                    lastCipherClaimed: remotePlayer.gamestate?.lastCipherClaimed || null,
+                    
+                    // Crucial Arrays & Objects fallback so .filter() NEVER crashes!
+                    activeBoosts: remotePlayer.gamestate?.activeBoosts || [],
+                    taskProgress: remotePlayer.gamestate?.taskProgress || {},
+                    lastDealPurchases: remotePlayer.gamestate?.lastDealPurchases || {},
+                    withdrawalHistory: remotePlayer.gamestate?.withdrawalHistory || [],
+                    activeAutoMiner: remotePlayer.gamestate?.activeAutoMiner || null,
+                    hasOfflineEarnings: Boolean(remotePlayer.gamestate?.hasOfflineEarnings)
                 };
 
                 if (remotePlayer.gamestate && remotePlayer.gamestate.upgrades) {
@@ -394,7 +413,6 @@ const App: React.FC = () => {
                         const activeEndTime = Math.min(now, parsedPlayer.activeAutoMiner);
                         const secondsOffline = (activeEndTime - lastUpdate) / 1000;
                         
-                        // 120 seconds = 2 minutes threshold!
                         if (secondsOffline > 120) {
                             const offlineIncome = (parsedPlayer.passivePerHour / 3600) * secondsOffline;
                             if (!isNaN(offlineIncome) && offlineIncome > 0) setOfflineEarnings(offlineIncome); 
@@ -440,7 +458,7 @@ const App: React.FC = () => {
 
   const savePlayerToSupabase = async (currentPlayer: Player, currentUpgrades: Upgrade[]) => {
       if (!currentPlayer || !currentPlayer.telegramId) return;
-      if (currentPlayer.telegramId === 'GHOST_ACCOUNT') return;
+      if (currentPlayer.telegramId === 'GHOST_ACCOUNT' || isDeletingRef.current) return;
 
       const { telegramId, username, balance, level, stars, referralCount, invitedBy, isBanned, ...gameState } = currentPlayer;
       const fullGameState = { ...gameState, upgrades: currentUpgrades };
@@ -763,7 +781,6 @@ const App: React.FC = () => {
         <EarnView player={player} onHoldStart={handleHoldStart} onHoldEnd={handleHoldEnd} floatingTexts={floatingTexts} onDailyRewardClick={() => setView('DailyReward')} onCipherClick={() => setView('DailyCipher')} isRewardAvailable={isRewardAvailable} onActivateBooster={handleActivateBooster} pendingHoldReward={pendingHoldReward} isClaimModalVisible={isClaimModalVisible} onClaimHoldReward={handleClaimHoldReward} onCancelHoldReward={handleCancelHoldReward} currentHoldAmount={currentHoldAmount} isRewardUrgent={isRewardUrgent} isCipherClaimed={player.dailyCipherClaimed} theme={theme} onShowAd={handleShowAd} isDarkMode={isDarkMode} toggleTheme={toggleThemeMode} />
       );
       case 'Upgrades': return (
-        // ✅ BUG FIX: onToggleMiner accurately passed to the UI View
         <UpgradesView upgrades={upgrades} stellarDeals={stellarDeals} player={player} onBuy={buyUpgrade} onBuyStellarDeal={handleBuyStellarDeal} isDealAdModalVisible={isDealAdModalVisible} dealToProcess={dealToProcess} onConfirmDealAd={handleConfirmDealAd} onCancelDealAd={() => setIsDealAdModalVisible(false)} theme={theme} onShowAd={handleShowAd} onToggleMiner={handleToggleMiner} />
       );
       case 'Tasks': return (
