@@ -53,7 +53,6 @@ const PlayerRow: React.FC<{ player: Partial<Player>; rank: number; theme: string
 
     return (
         <div className={`relative p-3 rounded-2xl flex items-center justify-between transition-all border group backdrop-blur-xl shadow-sm ${containerStyles}`}>
-            {/* Hover Glow */}
             <div className={`absolute inset-0 rounded-2xl bg-white/0 group-hover:bg-white/10 transition-colors duration-300 pointer-events-none`}></div>
 
             <div className="flex items-center gap-4 z-10 min-w-0">
@@ -89,7 +88,7 @@ const PlayerRow: React.FC<{ player: Partial<Player>; rank: number; theme: string
             
             <div className="flex flex-col items-end gap-0.5 z-10 shrink-0 pl-2">
                 <div className="flex items-center gap-1.5">
-                    {/* ✅ FIXED: Now uses the new compact number format */}
+                    {/* ✅ COMPACT NUMBER FORMAT USED HERE */}
                     <span className={`font-mono font-bold text-sm ${balanceColor}`}>
                         {formatCompactNumber(Number(player.balance || 0))}
                     </span>
@@ -115,7 +114,7 @@ const LeaderboardView: React.FC<LeaderboardViewProps> = ({ player, theme, referr
     }
   };
 
-  // ✅ BUG FIX: Safely grab referral count regardless of camelCase vs lowercase from Database
+  // ✅ SAFELY GRABS REFERRALS FROM EITHER FIELD TO PREVENT '0' BUG
   const actualReferrals = player.referralCount || (player as any).referralcount || 0;
   const earnedStars = actualReferrals * referralReward;
 
@@ -130,7 +129,6 @@ const LeaderboardView: React.FC<LeaderboardViewProps> = ({ player, theme, referr
       
       {/* Referral Section - "Alliance Mainframe" */}
       <div className={`relative overflow-hidden rounded-[2rem] bg-white/60 dark:bg-slate-900 border border-white/40 dark:border-${theme}-500/30 shadow-2xl group transition-all backdrop-blur-xl`}>
-        {/* Holographic BG */}
         <div className={`absolute inset-0 bg-gradient-to-br from-${theme}-100/40 via-transparent to-slate-100/50 dark:from-${theme}-900/40 dark:via-transparent dark:to-black`}></div>
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay"></div>
         
@@ -148,7 +146,6 @@ const LeaderboardView: React.FC<LeaderboardViewProps> = ({ player, theme, referr
 
             <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white/40 dark:bg-black/40 rounded-xl p-3 flex flex-col items-center justify-center border border-white/30 dark:border-white/5 backdrop-blur-md">
-                    {/* ✅ FIXED: Displaying the safe variable */}
                     <span className="text-3xl font-black text-slate-900 dark:text-white drop-shadow-sm">{actualReferrals}</span>
                     <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] font-bold mt-1">Recruits</span>
                 </div>
