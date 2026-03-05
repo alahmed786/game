@@ -18,7 +18,7 @@ import AdminView from './views/Admin';
 import IntroScreen from './components/IntroScreen';
 import { playStardustSound } from './utils/audio';
 import { showAd } from './utils/ads';
-import { supabase, fetchLeaderboard, processReferral, fetchUserRank, fetchGameSettings } from './utils/supabase';
+import { supabase, fetchGameSettings } from './utils/supabase'; // REMOVED BROKEN FETCHERS
 
 declare global {
   interface Window {
@@ -31,18 +31,13 @@ const ADMIN_ID = "702954043";
 // --- Maintenance Screen Modal ---
 const MaintenanceScreen: React.FC<{ endTime: number; onFinished: () => void; isDarkMode: boolean }> = ({ endTime, onFinished, isDarkMode }) => {
   const [timeLeft, setTimeLeft] = useState("");
-
   useEffect(() => {
     const timer = setInterval(() => {
       const now = Date.now();
       const diff = endTime - now;
-      if (diff <= 0) {
-        clearInterval(timer);
-        onFinished();
-      } else {
-        const h = Math.floor(diff / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
+      if (diff <= 0) { clearInterval(timer); onFinished(); } 
+      else {
+        const h = Math.floor(diff / 3600000); const m = Math.floor((diff % 3600000) / 60000); const s = Math.floor((diff % 60000) / 1000);
         setTimeLeft(`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`);
       }
     }, 1000);
@@ -221,21 +216,33 @@ const App: React.FC = () => {
      showAd(adminConfig.adUnits, onComplete, onError);
   };
 
-  // ✅ INTELLIGENT REALTIME REFERRAL LISTENER
+  // ✅ PERFECTED REALTIME REFERRAL LISTENER
   useEffect(() => {
     const subscription = supabase.channel('public:players')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload: any) => {
         if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
            const newPlayer = payload.new;
+           
+           // Update leaderboard instantly when anyone changes
            setAllPlayers(prev => {
               const filtered = prev.filter(p => p.telegramId !== newPlayer.telegramid);
-              const mappedPlayer: any = { telegramId: newPlayer.telegramid, username: newPlayer.username || 'Unknown', photoUrl: newPlayer.gamestate?.photoUrl || null, balance: newPlayer.balance, level: newPlayer.level, stars: newPlayer.stars, referralCount: newPlayer.referralcount };
+              const mappedPlayer: any = { 
+                  telegramId: newPlayer.telegramid, 
+                  username: newPlayer.username || 'Unknown', 
+                  photoUrl: newPlayer.gamestate?.photoUrl || null, 
+                  balance: newPlayer.balance, 
+                  level: newPlayer.level, 
+                  stars: newPlayer.stars, 
+                  referralCount: newPlayer.referralcount 
+              };
               return [...filtered, mappedPlayer].sort((a, b) => b.balance - a.balance);
            });
+           
+           // If the updated row belongs to the CURRENT user, safely absorb new referrals & stars!
            setPlayer(prev => {
                 if (prev && prev.telegramId === newPlayer.telegramid) { 
                     const incomingReferrals = newPlayer.referralcount || 0;
-                    if (incomingReferrals > prev.referralCount) {
+                    if (incomingReferrals > prev.referralCount || newPlayer.stars > prev.stars) {
                         return { ...prev, referralCount: incomingReferrals, stars: newPlayer.stars, level: newPlayer.level, balance: newPlayer.balance };
                     }
                     return { ...prev, referralCount: incomingReferrals, level: newPlayer.level, balance: newPlayer.balance }; 
@@ -304,26 +311,32 @@ const App: React.FC = () => {
             }
             setUpgrades(currentGlobalUpgrades);
 
-            const [userResult, leaderboardData] = await Promise.all([
+            // ✅ BYPASS BROKEN EXTERNAL LEADERBOARD FUNCTION - Queries DB directly and safely!
+            const [userResult, leaderboardResult] = await Promise.all([
                 supabase.from('players').select('*').eq('telegramid', telegramId).maybeSingle(),
-                fetchLeaderboard()
+                supabase.from('players').select('*').order('balance', { ascending: false }).limit(50)
             ]);
 
-            setAllPlayers(Array.isArray(leaderboardData) ? leaderboardData as Player[] : []);
+            // Maps DB data into strict Player structure so Leaderboard NEVER defaults to Dummy Bots
+            const parsedLeaderboard = (leaderboardResult.data || []).map((p: any) => ({
+                telegramId: p.telegramid,
+                username: p.username || 'Unknown',
+                balance: Number(p.balance) || 0,
+                level: Number(p.level) || 1,
+                stars: Number(p.stars) || 0,
+                referralCount: Number(p.referralcount) || 0,
+                photoUrl: p.gamestate?.photoUrl || undefined
+            }));
+            
+            setAllPlayers(parsedLeaderboard as Player[]);
 
             let loadedPlayer: Player;
 
             if (userResult.data) {
                 const remotePlayer = userResult.data;
                 const defaultPlayer = createNewPlayer();
-                
                 let parsedGameState = typeof remotePlayer.gamestate === 'object' && remotePlayer.gamestate !== null ? remotePlayer.gamestate : {};
                 
-                const safeActiveBoosts = Array.isArray(parsedGameState.activeBoosts) ? parsedGameState.activeBoosts : [];
-                const safeTaskProgress = typeof parsedGameState.taskProgress === 'object' && parsedGameState.taskProgress !== null ? parsedGameState.taskProgress : {};
-                const safeLastDeals = typeof parsedGameState.lastDealPurchases === 'object' && parsedGameState.lastDealPurchases !== null ? parsedGameState.lastDealPurchases : {};
-                const safeWithdrawals = Array.isArray(parsedGameState.withdrawalHistory) ? parsedGameState.withdrawalHistory : [];
-
                 const parsedPlayer: Player = {
                     ...defaultPlayer,
                     ...parsedGameState,
@@ -336,10 +349,10 @@ const App: React.FC = () => {
                     invitedBy: remotePlayer.invitedby || remotePlayer.invitedBy || undefined,
                     photoUrl: photoUrl || parsedGameState.photoUrl || undefined, 
                     lastCipherClaimed: parsedGameState.lastCipherClaimed || null,
-                    activeBoosts: safeActiveBoosts,
-                    taskProgress: safeTaskProgress,
-                    lastDealPurchases: safeLastDeals,
-                    withdrawalHistory: safeWithdrawals,
+                    activeBoosts: Array.isArray(parsedGameState.activeBoosts) ? parsedGameState.activeBoosts : [],
+                    taskProgress: typeof parsedGameState.taskProgress === 'object' && parsedGameState.taskProgress !== null ? parsedGameState.taskProgress : {},
+                    lastDealPurchases: typeof parsedGameState.lastDealPurchases === 'object' && parsedGameState.lastDealPurchases !== null ? parsedGameState.lastDealPurchases : {},
+                    withdrawalHistory: Array.isArray(parsedGameState.withdrawalHistory) ? parsedGameState.withdrawalHistory : [],
                     activeAutoMiner: parsedGameState.activeAutoMiner || null,
                     hasOfflineEarnings: Boolean(parsedGameState.hasOfflineEarnings)
                 };
@@ -380,33 +393,29 @@ const App: React.FC = () => {
             } else {
                 const newPlayer = createNewPlayer();
                 
-                // ✅ FIX 2: THE REFERRAL INJECTION & INSTANT LEADERBOARD REFRESH
+                // ✅ DIRECT REFERRAL DATABASE INJECTION
                 if (startParam && startParam !== telegramId) {
                     newPlayer.invitedBy = startParam;
-                    alert(`DEBUG: You joined via referral link!\nInviter ID: ${startParam}\nAttempting to credit them...`);
                     try {
-                        const { data: inviter, error: fetchErr } = await supabase.from('players').select('stars, referralcount').eq('telegramid', startParam).single();
-                        
-                        if (fetchErr) {
-                            alert(`DEBUG ERROR: Could not find inviter in database.\nDetails: ${fetchErr.message}`);
-                        } else if (inviter) {
+                        const { data: inviter } = await supabase.from('players').select('stars, referralcount').eq('telegramid', startParam).single();
+                        if (inviter) {
                             const reward = adminConfig.referralRewardStars || 10;
-                            const { error: updateErr } = await supabase.from('players').update({
+                            // FORCE UPDATE THE DATABASE
+                            await supabase.from('players').update({
                                 stars: (inviter.stars || 0) + reward,
                                 referralcount: (inviter.referralcount || 0) + 1
                             }).eq('telegramid', startParam);
                             
-                            if (updateErr) {
-                                alert(`DEBUG ERROR: Failed to give stars. RLS issue?\nDetails: ${updateErr.message}`);
-                            } else {
-                                alert(`DEBUG SUCCESS: Credited inviter +1 Recruit and +${reward} Stars!`);
-                                // Refresh the leaderboard instantly so local data accurately shows the new recruit!
-                                const newLeaderboard = await fetchLeaderboard();
-                                if (Array.isArray(newLeaderboard)) setAllPlayers(newLeaderboard as Player[]);
+                            // Instantly refresh the leaderboard array so the new recruit visibly bumps the inviter's numbers up!
+                            const { data: freshBoard } = await supabase.from('players').select('*').order('balance', { ascending: false }).limit(50);
+                            if (freshBoard) {
+                                setAllPlayers(freshBoard.map((p: any) => ({
+                                    telegramId: p.telegramid, username: p.username || 'Unknown', balance: Number(p.balance) || 0, level: Number(p.level) || 1, stars: Number(p.stars) || 0, referralCount: Number(p.referralcount) || 0, photoUrl: p.gamestate?.photoUrl || undefined
+                                })) as Player[]);
                             }
                         }
-                    } catch (err: any) {
-                        alert(`DEBUG CRITICAL CRASH: ${err.message}`);
+                    } catch (err) {
+                        console.error("Referral Error:", err);
                     }
                 }
 
@@ -416,9 +425,15 @@ const App: React.FC = () => {
             }
             
             setPlayer(loadedPlayer);
-            const top50 = Array.isArray(leaderboardData) ? leaderboardData : [];
-            const indexInTop = top50.findIndex((p: any) => (p.telegramid || p.telegramId) === telegramId);
-            setUserRank(indexInTop !== -1 ? indexInTop + 1 : await fetchUserRank(loadedPlayer.balance));
+            
+            // Generate Accurate Global Rank
+            const indexInTop = parsedLeaderboard.findIndex((p: any) => p.telegramId === telegramId);
+            if (indexInTop !== -1) {
+                setUserRank(indexInTop + 1);
+            } else {
+                const { count } = await supabase.from('players').select('telegramid', { count: 'exact', head: true }).gt('balance', loadedPlayer.balance);
+                setUserRank((count || 0) + 1);
+            }
 
         } catch (e) {
             console.error("Init Error:", e);
@@ -430,7 +445,7 @@ const App: React.FC = () => {
     initGame();
   }, []);
 
-  // ✅ FIX 3: ADD REFERRALCOUNT BACK TO PAYLOAD
+  // ✅ PREVENTS FRONTEND OVERWRITE LOOP
   const savePlayerToSupabase = async (currentPlayer: Player, currentUpgrades: Upgrade[]) => {
       if (!currentPlayer || !currentPlayer.telegramId || currentPlayer.telegramId === 'GHOST_ACCOUNT') return;
       
@@ -446,7 +461,7 @@ const App: React.FC = () => {
               balance: balance, 
               level: level, 
               stars: stars,
-              referralcount: referralCount || 0, // Successfully re-added so the DB properly saves the count!
+              // STRIPPED referralcount OUT! Supabase handles it autonomously now.
               gamestate: cleanGameState, 
               lastupdated: new Date().toISOString() 
           };
