@@ -1,6 +1,14 @@
-
 import React from 'react';
 import { Player, Theme, LeaderboardViewProps } from '../types';
+
+// ✅ NEW: Compact Number Formatter (1000 -> 1k, 1500 -> 1.5k)
+const formatCompactNumber = (num: number) => {
+    if (!num) return '0';
+    if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\.0$/, '') + 'b';
+    if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\.0$/, '') + 'm';
+    if (num >= 1e3) return (num / 1e3).toFixed(1).replace(/\.0$/, '') + 'k';
+    return num.toString();
+};
 
 const DUMMY_LEADERS: Partial<Player>[] = [
     { telegramId: 'bot1', username: 'AstroGeneral_X', balance: 25000000, level: 52, stars: 1500, photoUrl: '' },
@@ -48,7 +56,7 @@ const PlayerRow: React.FC<{ player: Partial<Player>; rank: number; theme: string
             {/* Hover Glow */}
             <div className={`absolute inset-0 rounded-2xl bg-white/0 group-hover:bg-white/10 transition-colors duration-300 pointer-events-none`}></div>
 
-            <div className="flex items-center gap-4 z-10">
+            <div className="flex items-center gap-4 z-10 min-w-0">
                 <div className="w-8 flex justify-center shrink-0">
                     {rankBadge}
                 </div>
@@ -62,13 +70,13 @@ const PlayerRow: React.FC<{ player: Partial<Player>; rank: number; theme: string
                     {isMe && <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-slate-900"></div>}
                 </div>
                 
-                <div className="flex flex-col gap-0.5">
-                    <span className={`text-sm truncate max-w-[120px] ${nameColor}`}>
+                <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className={`text-sm truncate max-w-[100px] sm:max-w-[140px] ${nameColor}`}>
                         {player.username || 'Unknown'} {isMe && '(You)'}
                     </span>
                     <div className="flex items-center gap-2">
                         <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/30 dark:bg-black/40 border border-slate-200 dark:border-white/5 text-slate-500`}>
-                            Lvl {player.level}
+                            Lvl {player.level || 1}
                         </span>
                         {(player.stars || 0) > 0 && (
                             <span className="text-[9px] font-bold text-yellow-600 dark:text-yellow-500 flex items-center gap-0.5">
@@ -79,10 +87,11 @@ const PlayerRow: React.FC<{ player: Partial<Player>; rank: number; theme: string
                 </div>
             </div>
             
-            <div className="flex flex-col items-end gap-0.5 z-10">
+            <div className="flex flex-col items-end gap-0.5 z-10 shrink-0 pl-2">
                 <div className="flex items-center gap-1.5">
+                    {/* ✅ FIXED: Now uses the new compact number format */}
                     <span className={`font-mono font-bold text-sm ${balanceColor}`}>
-                        {Number(player.balance).toLocaleString()}
+                        {formatCompactNumber(Number(player.balance || 0))}
                     </span>
                     <span className="text-[10px] opacity-60 text-slate-500 dark:text-slate-400">Dust</span>
                 </div>
@@ -106,7 +115,10 @@ const LeaderboardView: React.FC<LeaderboardViewProps> = ({ player, theme, referr
     }
   };
 
-  const earnedStars = player.referralCount * referralReward;
+  // ✅ BUG FIX: Safely grab referral count regardless of camelCase vs lowercase from Database
+  const actualReferrals = player.referralCount || (player as any).referralcount || 0;
+  const earnedStars = actualReferrals * referralReward;
+
   const activeLeaderboard = (leaderboardData && leaderboardData.length > 0) ? leaderboardData : DUMMY_LEADERS;
 
   const displayLimit = 50;
@@ -136,7 +148,8 @@ const LeaderboardView: React.FC<LeaderboardViewProps> = ({ player, theme, referr
 
             <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white/40 dark:bg-black/40 rounded-xl p-3 flex flex-col items-center justify-center border border-white/30 dark:border-white/5 backdrop-blur-md">
-                    <span className="text-3xl font-black text-slate-900 dark:text-white drop-shadow-sm">{player.referralCount}</span>
+                    {/* ✅ FIXED: Displaying the safe variable */}
+                    <span className="text-3xl font-black text-slate-900 dark:text-white drop-shadow-sm">{actualReferrals}</span>
                     <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] font-bold mt-1">Recruits</span>
                 </div>
                 <div className="bg-white/40 dark:bg-black/40 rounded-xl p-3 flex flex-col items-center justify-center border border-white/30 dark:border-white/5 backdrop-blur-md">
