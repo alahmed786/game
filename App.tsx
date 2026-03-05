@@ -20,29 +20,19 @@ import { playStardustSound } from './utils/audio';
 import { showAd } from './utils/ads';
 import { supabase, fetchLeaderboard, processReferral, fetchUserRank, fetchGameSettings } from './utils/supabase';
 
-declare global {
-  interface Window {
-    Telegram: any;
-  }
-}
-
+declare global { interface Window { Telegram: any; } }
 const ADMIN_ID = "702954043";
 
 // --- Maintenance Screen Modal ---
 const MaintenanceScreen: React.FC<{ endTime: number; onFinished: () => void; isDarkMode: boolean }> = ({ endTime, onFinished, isDarkMode }) => {
   const [timeLeft, setTimeLeft] = useState("");
-
   useEffect(() => {
     const timer = setInterval(() => {
       const now = Date.now();
       const diff = endTime - now;
-      if (diff <= 0) {
-        clearInterval(timer);
-        onFinished();
-      } else {
-        const h = Math.floor(diff / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
+      if (diff <= 0) { clearInterval(timer); onFinished(); } 
+      else {
+        const h = Math.floor(diff / 3600000); const m = Math.floor((diff % 3600000) / 60000); const s = Math.floor((diff % 60000) / 1000);
         setTimeLeft(`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`);
       }
     }, 1000);
@@ -396,16 +386,31 @@ const App: React.FC = () => {
     initGame();
   }, []);
 
+  // ✅ CRITICAL BUG FIX: DO NOT SEND REFERRALCOUNT TO BACKEND
+  // By omitting referralcount, the frontend can NEVER overwrite the referral logic!
   const savePlayerToSupabase = async (currentPlayer: Player, currentUpgrades: Upgrade[]) => {
       if (!currentPlayer || !currentPlayer.telegramId || currentPlayer.telegramId === 'GHOST_ACCOUNT') return;
+      
       const { telegramId, username, balance, level, stars, referralCount, invitedBy, isBanned, ...gameState } = currentPlayer;
       const fullGameState = { ...gameState, upgrades: currentUpgrades };
+
       try {
           const cleanGameState = JSON.parse(JSON.stringify(fullGameState));
-          await supabase.from('players').upsert({
-              telegramid: telegramId, username: username, balance: balance, level: level, stars: stars,
-              referralcount: referralCount || 0, invitedby: invitedBy || null, gamestate: cleanGameState, lastupdated: new Date().toISOString() 
-          }, { onConflict: 'telegramid' });
+          
+          const payload: any = {
+              telegramid: telegramId, 
+              username: username, 
+              balance: balance, 
+              level: level, 
+              stars: stars,
+              gamestate: cleanGameState, 
+              lastupdated: new Date().toISOString() 
+          };
+
+          // Only send invitedby on initial creation to prevent overwriting
+          if (invitedBy) payload.invitedby = invitedBy;
+
+          await supabase.from('players').upsert(payload, { onConflict: 'telegramid' });
       } catch (err) { console.error(err); }
   };
 
@@ -549,43 +554,27 @@ const App: React.FC = () => {
 
   const handleCancelHoldReward = () => { setPendingHoldReward(null); setIsClaimModalVisible(false); accumulatedHoldRewardRef.current = 0; };
 
-  // ✅ FULLY FIXED: Checks balance, deducts 1000, and starts timer.
   const handleToggleMiner = () => {
       if (!player || player.passivePerHour <= 0) return;
-      
       const now = Date.now();
       const isMinerActive = player.activeAutoMiner && player.activeAutoMiner > now;
-      
       let newActiveState: number | null = null;
       let newBalance = player.balance;
       
       if (!isMinerActive) {
-          // Check if user can afford it
           if (player.balance < 1000) {
               try {
-                  if (window.Telegram?.WebApp?.showAlert) {
-                      window.Telegram.WebApp.showAlert("Not enough Stardust to activate the auto-miner!");
-                  } else {
-                      alert("Not enough Stardust to activate the auto-miner!");
-                  }
+                  if (window.Telegram?.WebApp?.showAlert) window.Telegram.WebApp.showAlert("Not enough Stardust to activate the auto-miner!"); 
+                  else alert("Not enough Stardust to activate the auto-miner!");
               } catch(e) {}
-              return; // Halt activation
+              return; 
           }
-          
-          newBalance -= 1000;              // Deduct cost
-          newActiveState = now + 14400000; // 4 Hours
-          triggerBalanceAnimation();       // Flash the UI to show deduction
+          newBalance -= 1000;              
+          newActiveState = now + 14400000; 
+          triggerBalanceAnimation();       
       } 
       
-      // If isMinerActive was true, they clicked stop, so newActiveState remains null.
-      
-      const updated = { 
-          ...player, 
-          balance: newBalance, 
-          activeAutoMiner: newActiveState, 
-          lastUpdate: now 
-      };
-      
+      const updated = { ...player, balance: newBalance, activeAutoMiner: newActiveState, lastUpdate: now };
       setPlayer(updated);
       savePlayerToSupabase(updated, upgradesRef.current);
   };
