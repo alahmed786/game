@@ -36,9 +36,13 @@ const MaintenanceScreen: React.FC<{ endTime: number; onFinished: () => void; isD
     const timer = setInterval(() => {
       const now = Date.now();
       const diff = endTime - now;
-      if (diff <= 0) { clearInterval(timer); onFinished(); } 
-      else {
-        const h = Math.floor(diff / 3600000); const m = Math.floor((diff % 3600000) / 60000); const s = Math.floor((diff % 60000) / 1000);
+      if (diff <= 0) {
+        clearInterval(timer);
+        onFinished();
+      } else {
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
         setTimeLeft(`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`);
       }
     }, 1000);
@@ -217,7 +221,7 @@ const App: React.FC = () => {
      showAd(adminConfig.adUnits, onComplete, onError);
   };
 
-  // ✅ REALTIME LISTENER FOR INCOMING REFERRALS
+  // ✅ INTELLIGENT REALTIME REFERRAL LISTENER
   useEffect(() => {
     const subscription = supabase.channel('public:players')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload: any) => {
@@ -278,6 +282,7 @@ const App: React.FC = () => {
 
     const initGame = async () => {
         if (telegramId === 'GHOST_ACCOUNT') {
+            console.error("Critical Error: Telegram ID missing. App locked to prevent database wipe.");
             setPlayer(createNewPlayer()); setCanSave(false); return;
         }
 
@@ -375,11 +380,10 @@ const App: React.FC = () => {
             } else {
                 const newPlayer = createNewPlayer();
                 
-                // ✅ AGGRESSIVE DEBUGGING FOR REFERRALS
+                // ✅ FIX 2: THE REFERRAL INJECTION & INSTANT LEADERBOARD REFRESH
                 if (startParam && startParam !== telegramId) {
                     newPlayer.invitedBy = startParam;
                     alert(`DEBUG: You joined via referral link!\nInviter ID: ${startParam}\nAttempting to credit them...`);
-                    
                     try {
                         const { data: inviter, error: fetchErr } = await supabase.from('players').select('stars, referralcount').eq('telegramid', startParam).single();
                         
@@ -393,9 +397,12 @@ const App: React.FC = () => {
                             }).eq('telegramid', startParam);
                             
                             if (updateErr) {
-                                alert(`DEBUG ERROR: Failed to give stars to inviter! Possible RLS permission block.\nDetails: ${updateErr.message}`);
+                                alert(`DEBUG ERROR: Failed to give stars. RLS issue?\nDetails: ${updateErr.message}`);
                             } else {
                                 alert(`DEBUG SUCCESS: Credited inviter +1 Recruit and +${reward} Stars!`);
+                                // Refresh the leaderboard instantly so local data accurately shows the new recruit!
+                                const newLeaderboard = await fetchLeaderboard();
+                                if (Array.isArray(newLeaderboard)) setAllPlayers(newLeaderboard as Player[]);
                             }
                         }
                     } catch (err: any) {
@@ -423,6 +430,7 @@ const App: React.FC = () => {
     initGame();
   }, []);
 
+  // ✅ FIX 3: ADD REFERRALCOUNT BACK TO PAYLOAD
   const savePlayerToSupabase = async (currentPlayer: Player, currentUpgrades: Upgrade[]) => {
       if (!currentPlayer || !currentPlayer.telegramId || currentPlayer.telegramId === 'GHOST_ACCOUNT') return;
       
@@ -438,11 +446,11 @@ const App: React.FC = () => {
               balance: balance, 
               level: level, 
               stars: stars,
+              referralcount: referralCount || 0, // Successfully re-added so the DB properly saves the count!
               gamestate: cleanGameState, 
               lastupdated: new Date().toISOString() 
           };
 
-          // NEVER include referralcount here! The database handles it securely now.
           if (invitedBy) payload.invitedby = invitedBy;
 
           await supabase.from('players').upsert(payload, { onConflict: 'telegramid' });
