@@ -93,7 +93,6 @@ const UpgradeCard: React.FC<{ upgrade: Upgrade, player: Player, theme: string, o
   const hasEnoughCurrency = isStarCost ? player.stars >= upgrade.cost : player.balance >= upgrade.cost;
   const isMaxed = upgrade.level >= upgrade.maxLevel;
   
-  // MINER LOCK LOGIC
   const isPassive = !!upgrade.profitPerHour;
   const isMinerActive = player.activeAutoMiner && player.activeAutoMiner > Date.now();
   const isLockedByMiner = isPassive && isMinerActive;
@@ -149,6 +148,10 @@ const UpgradesView: React.FC<any> = ({ upgrades, stellarDeals, player, onBuy, on
   const isMinerActive = player.activeAutoMiner && player.activeAutoMiner > Date.now();
   const [minerTimeLeft, setMinerTimeLeft] = useState(0);
 
+  // Constants for Miner Cost
+  const MINER_COST = 1000;
+  const canAffordMiner = player.balance >= MINER_COST;
+
   useEffect(() => {
       if (!player.activeAutoMiner) { setMinerTimeLeft(0); return; }
       const updateTimer = () => { const left = player.activeAutoMiner! - Date.now(); setMinerTimeLeft(left > 0 ? left : 0); };
@@ -157,32 +160,90 @@ const UpgradesView: React.FC<any> = ({ upgrades, stellarDeals, player, onBuy, on
       return () => clearInterval(interval);
   }, [player.activeAutoMiner]);
 
+  // Calculate visual progress bar %
+  const TOTAL_MS = 14400000; // 4 Hours
+  const progressPercent = isMinerActive ? Math.min(100, Math.max(0, (minerTimeLeft / TOTAL_MS) * 100)) : 0;
+
   return (
     <div className="pt-4 flex flex-col gap-6">
       {isDealAdModalVisible && dealToProcess && <AdDealModal deal={dealToProcess} onConfirm={onConfirmDealAd} onCancel={onCancelDealAd} theme={theme} onShowAd={onShowAd} />}
       
-      {/* UI UPDATE: Global Dashboard with Cycle Timer */}
-      <div className={`bg-gradient-to-br from-${theme}-900/40 to-slate-900/60 backdrop-blur-xl p-6 rounded-3xl border border-${theme}-500/30 text-center flex flex-col items-center gap-2 mx-4 shadow-[0_0_30px_rgba(var(--bg-primary),0.2)] relative overflow-hidden`}>
-        {isMinerActive && <div className={`absolute -top-20 -right-20 w-40 h-40 bg-${theme}-500/20 rounded-full blur-[50px] animate-pulse`}></div>}
-        <div className={`relative w-16 h-16 bg-gradient-to-br from-${theme}-500 to-blue-600 rounded-2xl flex items-center justify-center text-4xl shadow-xl border border-white/10 rotate-3`}>🚀{isMinerActive && (<span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-slate-900 rounded-full animate-ping"></span>)}</div>
-        <h2 className="text-xl font-black uppercase tracking-widest text-white drop-shadow-md mt-1">Fleet Command</h2>
+      {/* 🚀 PREMIUM FLEET COMMAND UI UPGRADE 🚀 */}
+      <div className={`relative overflow-hidden p-6 rounded-[2rem] mx-4 shadow-xl transition-all border ${isMinerActive ? 'bg-gradient-to-br from-slate-50 to-emerald-50 dark:from-slate-900 dark:to-emerald-950/30 border-emerald-500/30' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200 dark:border-slate-800'}`}>
         
-        <div className="mt-3 bg-slate-950/60 rounded-2xl p-4 w-full border border-slate-800 flex flex-col gap-4 shadow-inner">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                    <div className={`w-2 h-2 rounded-full ${isMinerActive ? 'bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,0.8)]' : 'bg-slate-600'}`}></div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${isMinerActive ? "text-emerald-400" : "text-slate-500"}`}>{isMinerActive ? 'MINING ACTIVE' : 'SYSTEM STANDBY'}</span>
+        {/* Glow behind the rocket */}
+        {isMinerActive && <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/20 rounded-full blur-[50px] pointer-events-none animate-pulse"></div>}
+
+        {/* Header */}
+        <div className="flex items-center gap-4 relative z-10">
+            <div className={`w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-3xl shadow-inner border ${isMinerActive ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-300 dark:border-emerald-500/50' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
+                <span className={`${isMinerActive ? 'animate-bounce' : ''}`}>🚀</span>
+            </div>
+            <div className="flex flex-col">
+                <h2 className="text-xl font-black uppercase tracking-widest text-slate-900 dark:text-white leading-none">Fleet Command</h2>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mt-1">Autonomous Drone Sector</p>
+            </div>
+        </div>
+
+        {/* Status Box with Progress Bar */}
+        <div className={`mt-5 rounded-2xl p-4 border relative overflow-hidden ${isMinerActive ? 'bg-white/60 dark:bg-slate-950/40 border-emerald-200 dark:border-emerald-500/30 shadow-inner' : 'bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800/80'}`}>
+            
+            {/* Visual Progress Bar (Background Fill) */}
+            {isMinerActive && (
+                <div className="absolute top-0 left-0 bottom-0 bg-emerald-500/10 dark:bg-emerald-500/20" style={{ width: `${progressPercent}%`, transition: 'width 1s linear' }}></div>
+            )}
+
+            <div className="flex justify-between items-center relative z-10">
+                <div className="flex items-center gap-2">
+                    <div className={`w-2.5 h-2.5 rounded-full ${isMinerActive ? 'bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]' : 'bg-slate-400'}`}></div>
+                    <span className={`text-[11px] font-black uppercase tracking-widest ${isMinerActive ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}>
+                        {isMinerActive ? 'Mining Active' : 'System Standby'}
+                    </span>
                 </div>
                 <div className="flex flex-col items-end">
-                    <span className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Yield Rate</span>
-                    <span className={`font-mono font-black text-sm ${isMinerActive ? `text-${theme}-400` : 'text-slate-400'}`}>+{isMinerActive ? player.passivePerHour.toLocaleString() : 0}/hr</span>
+                    <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest">Yield Rate</span>
+                    <span className={`font-mono font-black text-base ${isMinerActive ? `text-emerald-600 dark:text-emerald-400` : 'text-slate-400'}`}>
+                        +{isMinerActive ? player.passivePerHour.toLocaleString() : 0}/hr
+                    </span>
                 </div>
             </div>
-            
-            {player.passivePerHour > 0 && (
-                <button onClick={onToggleMiner} className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 ${isMinerActive ? 'bg-red-500/10 text-red-500 border border-red-500/30 hover:bg-red-500/20' : 'bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:bg-emerald-400'}`}>
-                    {isMinerActive ? `STOP MINER (${formatTime(minerTimeLeft)})` : 'ACTIVATE MINER (4 HOURS)'}
-                </button>
+        </div>
+
+        {/* Action Button */}
+        <div className="mt-4 relative z-10">
+            {player.passivePerHour > 0 ? (
+                <>
+                    <button 
+                        onClick={onToggleMiner} 
+                        disabled={!isMinerActive && !canAffordMiner}
+                        className={`relative w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all overflow-hidden ${
+                            isMinerActive 
+                            ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 hover:bg-red-100 dark:hover:bg-red-500/20 active:scale-95' 
+                            : canAffordMiner
+                            ? `bg-gradient-to-r from-${theme}-500 to-indigo-600 hover:from-${theme}-400 hover:to-indigo-500 text-white shadow-lg shadow-${theme}-500/30 active:scale-95`
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-300 dark:border-slate-700'
+                        }`}
+                    >
+                        {isMinerActive ? (
+                            `STOP MINER • ${formatTime(minerTimeLeft)}`
+                        ) : (
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
+                                <span>ACTIVATE (4 HRS)</span>
+                                <span className="flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded-md">
+                                    <span className="text-sm leading-none drop-shadow-md">🪐</span>
+                                    <span>{MINER_COST.toLocaleString()}</span>
+                                </span>
+                            </div>
+                        )}
+                    </button>
+                    {!isMinerActive && !canAffordMiner && (
+                        <p className="text-center text-[10px] text-red-500 font-bold mt-2 uppercase tracking-widest">Insufficient Stardust to activate</p>
+                    )}
+                </>
+            ) : (
+                <div className="py-4 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest">Purchase Auto-Miners to enable</p>
+                </div>
             )}
         </div>
       </div>
