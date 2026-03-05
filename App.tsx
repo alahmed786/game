@@ -18,21 +18,31 @@ import AdminView from './views/Admin';
 import IntroScreen from './components/IntroScreen';
 import { playStardustSound } from './utils/audio';
 import { showAd } from './utils/ads';
-import { supabase, fetchLeaderboard, processReferral, fetchUserRank, fetchGameSettings } from './utils/supabase';
+import { supabase, fetchLeaderboard, fetchUserRank, fetchGameSettings } from './utils/supabase';
 
-declare global { interface Window { Telegram: any; } }
+declare global {
+  interface Window {
+    Telegram: any;
+  }
+}
+
 const ADMIN_ID = "702954043";
 
 // --- Maintenance Screen Modal ---
 const MaintenanceScreen: React.FC<{ endTime: number; onFinished: () => void; isDarkMode: boolean }> = ({ endTime, onFinished, isDarkMode }) => {
   const [timeLeft, setTimeLeft] = useState("");
+
   useEffect(() => {
     const timer = setInterval(() => {
       const now = Date.now();
       const diff = endTime - now;
-      if (diff <= 0) { clearInterval(timer); onFinished(); } 
-      else {
-        const h = Math.floor(diff / 3600000); const m = Math.floor((diff % 3600000) / 60000); const s = Math.floor((diff % 60000) / 1000);
+      if (diff <= 0) {
+        clearInterval(timer);
+        onFinished();
+      } else {
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
         setTimeLeft(`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`);
       }
     }, 1000);
@@ -211,6 +221,7 @@ const App: React.FC = () => {
      showAd(adminConfig.adUnits, onComplete, onError);
   };
 
+  // ✅ FIX 1: INTELLIGENT REALTIME REFERRAL LISTENER
   useEffect(() => {
     const subscription = supabase.channel('public:players')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload: any) => {
@@ -222,7 +233,22 @@ const App: React.FC = () => {
               return [...filtered, mappedPlayer].sort((a, b) => b.balance - a.balance);
            });
            setPlayer(prev => {
-                if (prev && prev.telegramId === newPlayer.telegramid) { return { ...prev, referralCount: newPlayer.referralcount, stars: newPlayer.stars, level: newPlayer.level, balance: newPlayer.balance }; }
+                if (prev && prev.telegramId === newPlayer.telegramid) { 
+                    // If the database has MORE referrals, it means a recruit just joined!
+                    // Safely accept the new referral count AND the new stars.
+                    const incomingReferrals = newPlayer.referralcount || 0;
+                    if (incomingReferrals > prev.referralCount) {
+                        return { 
+                            ...prev, 
+                            referralCount: incomingReferrals, 
+                            stars: newPlayer.stars, // Accept the rewarded stars from DB
+                            level: newPlayer.level, 
+                            balance: newPlayer.balance 
+                        };
+                    }
+                    // Otherwise, don't overwrite local stars
+                    return { ...prev, referralCount: incomingReferrals, level: newPlayer.level, balance: newPlayer.balance }; 
+                }
                 return prev;
            });
         }
@@ -362,10 +388,25 @@ const App: React.FC = () => {
                 setCanSave(true);
             } else {
                 const newPlayer = createNewPlayer();
+                
+                // ✅ FIX 2: DIRECT REFERRAL INJECTION
+                // This guarantees the inviter actually gets their 10 stars in the database instantly.
                 if (startParam && startParam !== telegramId) {
-                    processReferral(startParam, telegramId, adminConfig.referralRewardStars).catch(e => console.error(e));
                     newPlayer.invitedBy = startParam;
+                    try {
+                        const { data: inviter } = await supabase.from('players').select('stars, referralcount').eq('telegramid', startParam).single();
+                        if (inviter) {
+                            const reward = adminConfig.referralRewardStars || 10;
+                            await supabase.from('players').update({
+                                stars: (inviter.stars || 0) + reward,
+                                referralcount: (inviter.referralcount || 0) + 1
+                            }).eq('telegramid', startParam);
+                        }
+                    } catch (err) {
+                        console.error("Referral processing failed:", err);
+                    }
                 }
+
                 loadedPlayer = newPlayer;
                 setCanSave(true);
                 savePlayerToSupabase(newPlayer, currentGlobalUpgrades).catch(e => console.error(e));
@@ -386,8 +427,7 @@ const App: React.FC = () => {
     initGame();
   }, []);
 
-  // ✅ CRITICAL BUG FIX: DO NOT SEND REFERRALCOUNT TO BACKEND
-  // By omitting referralcount, the frontend can NEVER overwrite the referral logic!
+  // ✅ FIX 3: PREVENT REFERRAL OVERWRITE LOOP
   const savePlayerToSupabase = async (currentPlayer: Player, currentUpgrades: Upgrade[]) => {
       if (!currentPlayer || !currentPlayer.telegramId || currentPlayer.telegramId === 'GHOST_ACCOUNT') return;
       
@@ -407,7 +447,7 @@ const App: React.FC = () => {
               lastupdated: new Date().toISOString() 
           };
 
-          // Only send invitedby on initial creation to prevent overwriting
+          // NEVER include referralcount here! That allows the backend to handle it safely.
           if (invitedBy) payload.invitedby = invitedBy;
 
           await supabase.from('players').upsert(payload, { onConflict: 'telegramid' });
