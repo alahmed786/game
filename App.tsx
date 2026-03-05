@@ -310,7 +310,6 @@ const App: React.FC = () => {
                 const remotePlayer = userResult.data;
                 const defaultPlayer = createNewPlayer();
                 
-                // ✅ CRASH-PROOF HYDRATION: Safely map backend data. Forces arrays so .filter NEVER crashes
                 let parsedGameState = typeof remotePlayer.gamestate === 'object' && remotePlayer.gamestate !== null ? remotePlayer.gamestate : {};
                 
                 const safeActiveBoosts = Array.isArray(parsedGameState.activeBoosts) ? parsedGameState.activeBoosts : [];
@@ -330,8 +329,6 @@ const App: React.FC = () => {
                     invitedBy: remotePlayer.invitedby || remotePlayer.invitedBy || undefined,
                     photoUrl: photoUrl || parsedGameState.photoUrl || undefined, 
                     lastCipherClaimed: parsedGameState.lastCipherClaimed || null,
-                    
-                    // Injected Safe Arrays
                     activeBoosts: safeActiveBoosts,
                     taskProgress: safeTaskProgress,
                     lastDealPurchases: safeLastDeals,
@@ -350,14 +347,13 @@ const App: React.FC = () => {
                      setUpgrades(mergedUpgrades);
                 }
 
-                // ✅ 2-MINUTE OFFLINE MINING RULE
                 if (parsedPlayer.passivePerHour > 0 && parsedPlayer.activeAutoMiner) {
                     const now = Date.now();
                     const lastUpdate = parsedPlayer.lastUpdate || now;
                     if (parsedPlayer.activeAutoMiner > lastUpdate) {
                         const activeEndTime = Math.min(now, parsedPlayer.activeAutoMiner);
                         const secondsOffline = (activeEndTime - lastUpdate) / 1000;
-                        if (secondsOffline > 120) { // 2 Min Threshold
+                        if (secondsOffline > 120) { 
                             const offlineIncome = (parsedPlayer.passivePerHour / 3600) * secondsOffline;
                             if (!isNaN(offlineIncome) && offlineIncome > 0) setOfflineEarnings(offlineIncome); 
                         }
@@ -433,7 +429,6 @@ const App: React.FC = () => {
       const interval = setInterval(checkMidnightReset, 60000); checkMidnightReset(); return () => clearInterval(interval);
   }, [player?.dailyCipherClaimed]);
 
-  // LEVEL UP MATH FIX
   useEffect(() => {
     if (!player) return;
     let currentLevel = Number(player.level);
@@ -475,15 +470,12 @@ const App: React.FC = () => {
     checkUrgency(); const interval = setInterval(checkUrgency, 60000); return () => clearInterval(interval);
   }, [player?.lastRewardClaimed]);
 
-  // ✅ ACTIVE CYCLE PASSIVE INCOME TRACKER (Crash-Proof)
   const updatePassiveIncome = useCallback((time: number) => {
     if (lastPassiveTimeRef.current !== undefined) {
       const deltaTime = (time - lastPassiveTimeRef.current) / 1000;
       setPlayer(prev => {
         if (!prev || prev.isBanned) return prev;
         const now = Date.now();
-        
-        // Bulletproof array fallback
         const safeActiveBoosts = Array.isArray(prev.activeBoosts) ? prev.activeBoosts : [];
         const activeBoosts = safeActiveBoosts.filter(boost => boost.expiresAt > now);
         const boostsPPH = activeBoosts.filter(boost => boost.type === 'passive_income').reduce((sum, boost) => sum + (boost as { pph: number }).pph, 0); 
@@ -557,13 +549,45 @@ const App: React.FC = () => {
 
   const handleCancelHoldReward = () => { setPendingHoldReward(null); setIsClaimModalVisible(false); accumulatedHoldRewardRef.current = 0; };
 
+  // ✅ FULLY FIXED: Checks balance, deducts 1000, and starts timer.
   const handleToggleMiner = () => {
       if (!player || player.passivePerHour <= 0) return;
+      
       const now = Date.now();
+      const isMinerActive = player.activeAutoMiner && player.activeAutoMiner > now;
+      
       let newActiveState: number | null = null;
-      if (!player.activeAutoMiner || player.activeAutoMiner <= now) { newActiveState = now + 14400000; } // 4 Hours
-      const updated = { ...player, activeAutoMiner: newActiveState, lastUpdate: now };
-      setPlayer(updated); savePlayerToSupabase(updated, upgradesRef.current);
+      let newBalance = player.balance;
+      
+      if (!isMinerActive) {
+          // Check if user can afford it
+          if (player.balance < 1000) {
+              try {
+                  if (window.Telegram?.WebApp?.showAlert) {
+                      window.Telegram.WebApp.showAlert("Not enough Stardust to activate the auto-miner!");
+                  } else {
+                      alert("Not enough Stardust to activate the auto-miner!");
+                  }
+              } catch(e) {}
+              return; // Halt activation
+          }
+          
+          newBalance -= 1000;              // Deduct cost
+          newActiveState = now + 14400000; // 4 Hours
+          triggerBalanceAnimation();       // Flash the UI to show deduction
+      } 
+      
+      // If isMinerActive was true, they clicked stop, so newActiveState remains null.
+      
+      const updated = { 
+          ...player, 
+          balance: newBalance, 
+          activeAutoMiner: newActiveState, 
+          lastUpdate: now 
+      };
+      
+      setPlayer(updated);
+      savePlayerToSupabase(updated, upgradesRef.current);
   };
 
   const buyUpgrade = (upgradeId: string) => {
@@ -593,7 +617,6 @@ const App: React.FC = () => {
     if (deal.costType === 'stardust') updatedPlayer.balance -= deal.cost;
     if (deal.costType === 'stars') updatedPlayer.stars -= deal.cost;
     
-    // Safely enforce array structure before pushing
     const safeActiveBoosts = Array.isArray(updatedPlayer.activeBoosts) ? [...updatedPlayer.activeBoosts] : [];
     
      switch (deal.rewardType) {
