@@ -18,7 +18,7 @@ import AdminView from './views/Admin';
 import IntroScreen from './components/IntroScreen';
 import { playStardustSound } from './utils/audio';
 import { showAd } from './utils/ads';
-import { supabase, fetchLeaderboard, fetchUserRank, fetchGameSettings } from './utils/supabase';
+import { supabase, fetchLeaderboard, processReferral, fetchUserRank, fetchGameSettings } from './utils/supabase';
 
 declare global {
   interface Window {
@@ -36,13 +36,9 @@ const MaintenanceScreen: React.FC<{ endTime: number; onFinished: () => void; isD
     const timer = setInterval(() => {
       const now = Date.now();
       const diff = endTime - now;
-      if (diff <= 0) {
-        clearInterval(timer);
-        onFinished();
-      } else {
-        const h = Math.floor(diff / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
+      if (diff <= 0) { clearInterval(timer); onFinished(); } 
+      else {
+        const h = Math.floor(diff / 3600000); const m = Math.floor((diff % 3600000) / 60000); const s = Math.floor((diff % 60000) / 1000);
         setTimeLeft(`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`);
       }
     }, 1000);
@@ -221,7 +217,7 @@ const App: React.FC = () => {
      showAd(adminConfig.adUnits, onComplete, onError);
   };
 
-  // ✅ FIX 1: INTELLIGENT REALTIME REFERRAL LISTENER
+  // ✅ REALTIME LISTENER FOR INCOMING REFERRALS
   useEffect(() => {
     const subscription = supabase.channel('public:players')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload: any) => {
@@ -234,19 +230,10 @@ const App: React.FC = () => {
            });
            setPlayer(prev => {
                 if (prev && prev.telegramId === newPlayer.telegramid) { 
-                    // If the database has MORE referrals, it means a recruit just joined!
-                    // Safely accept the new referral count AND the new stars.
                     const incomingReferrals = newPlayer.referralcount || 0;
                     if (incomingReferrals > prev.referralCount) {
-                        return { 
-                            ...prev, 
-                            referralCount: incomingReferrals, 
-                            stars: newPlayer.stars, // Accept the rewarded stars from DB
-                            level: newPlayer.level, 
-                            balance: newPlayer.balance 
-                        };
+                        return { ...prev, referralCount: incomingReferrals, stars: newPlayer.stars, level: newPlayer.level, balance: newPlayer.balance };
                     }
-                    // Otherwise, don't overwrite local stars
                     return { ...prev, referralCount: incomingReferrals, level: newPlayer.level, balance: newPlayer.balance }; 
                 }
                 return prev;
@@ -291,7 +278,6 @@ const App: React.FC = () => {
 
     const initGame = async () => {
         if (telegramId === 'GHOST_ACCOUNT') {
-            console.error("Critical Error: Telegram ID missing. App locked to prevent database wipe.");
             setPlayer(createNewPlayer()); setCanSave(false); return;
         }
 
@@ -389,21 +375,31 @@ const App: React.FC = () => {
             } else {
                 const newPlayer = createNewPlayer();
                 
-                // ✅ FIX 2: DIRECT REFERRAL INJECTION
-                // This guarantees the inviter actually gets their 10 stars in the database instantly.
+                // ✅ AGGRESSIVE DEBUGGING FOR REFERRALS
                 if (startParam && startParam !== telegramId) {
                     newPlayer.invitedBy = startParam;
+                    alert(`DEBUG: You joined via referral link!\nInviter ID: ${startParam}\nAttempting to credit them...`);
+                    
                     try {
-                        const { data: inviter } = await supabase.from('players').select('stars, referralcount').eq('telegramid', startParam).single();
-                        if (inviter) {
+                        const { data: inviter, error: fetchErr } = await supabase.from('players').select('stars, referralcount').eq('telegramid', startParam).single();
+                        
+                        if (fetchErr) {
+                            alert(`DEBUG ERROR: Could not find inviter in database.\nDetails: ${fetchErr.message}`);
+                        } else if (inviter) {
                             const reward = adminConfig.referralRewardStars || 10;
-                            await supabase.from('players').update({
+                            const { error: updateErr } = await supabase.from('players').update({
                                 stars: (inviter.stars || 0) + reward,
                                 referralcount: (inviter.referralcount || 0) + 1
                             }).eq('telegramid', startParam);
+                            
+                            if (updateErr) {
+                                alert(`DEBUG ERROR: Failed to give stars to inviter! Possible RLS permission block.\nDetails: ${updateErr.message}`);
+                            } else {
+                                alert(`DEBUG SUCCESS: Credited inviter +1 Recruit and +${reward} Stars!`);
+                            }
                         }
-                    } catch (err) {
-                        console.error("Referral processing failed:", err);
+                    } catch (err: any) {
+                        alert(`DEBUG CRITICAL CRASH: ${err.message}`);
                     }
                 }
 
@@ -427,7 +423,6 @@ const App: React.FC = () => {
     initGame();
   }, []);
 
-  // ✅ FIX 3: PREVENT REFERRAL OVERWRITE LOOP
   const savePlayerToSupabase = async (currentPlayer: Player, currentUpgrades: Upgrade[]) => {
       if (!currentPlayer || !currentPlayer.telegramId || currentPlayer.telegramId === 'GHOST_ACCOUNT') return;
       
@@ -447,7 +442,7 @@ const App: React.FC = () => {
               lastupdated: new Date().toISOString() 
           };
 
-          // NEVER include referralcount here! That allows the backend to handle it safely.
+          // NEVER include referralcount here! The database handles it securely now.
           if (invitedBy) payload.invitedby = invitedBy;
 
           await supabase.from('players').upsert(payload, { onConflict: 'telegramid' });
