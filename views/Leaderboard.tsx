@@ -1,13 +1,14 @@
 import React from 'react';
 import { Player, Theme, LeaderboardViewProps } from '../types';
 
-// ✅ NEW: Compact Number Formatter (1000 -> 1k, 1500 -> 1.5k)
-const formatCompactNumber = (num: number) => {
-    if (!num) return '0';
-    if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\.0$/, '') + 'b';
-    if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\.0$/, '') + 'm';
-    if (num >= 1e3) return (num / 1e3).toFixed(1).replace(/\.0$/, '') + 'k';
-    return num.toString();
+// ✅ FIX: Robust Compact Number Formatter securely parses strings/numbers to format (e.g., 2600000 -> 2.6m)
+const formatCompactNumber = (num: number | string) => {
+    const parsed = Number(num);
+    if (isNaN(parsed) || parsed === 0) return '0';
+    if (parsed >= 1e9) return (parsed / 1e9).toFixed(1).replace(/\.0$/, '') + 'b';
+    if (parsed >= 1e6) return (parsed / 1e6).toFixed(1).replace(/\.0$/, '') + 'm';
+    if (parsed >= 1e3) return (parsed / 1e3).toFixed(1).replace(/\.0$/, '') + 'k';
+    return Math.floor(parsed).toString();
 };
 
 const DUMMY_LEADERS: Partial<Player>[] = [
@@ -51,6 +52,9 @@ const PlayerRow: React.FC<{ player: Partial<Player>; rank: number; theme: string
         balanceColor = `text-${theme}-700 dark:text-${theme}-300`;
     }
 
+    // Safely parse referrals to ensure 0 isn't returning undefined
+    const displayReferrals = player.referralCount || (player as any).referralcount || 0;
+
     return (
         <div className={`relative p-3 rounded-2xl flex items-center justify-between transition-all border group backdrop-blur-xl shadow-sm ${containerStyles}`}>
             <div className={`absolute inset-0 rounded-2xl bg-white/0 group-hover:bg-white/10 transition-colors duration-300 pointer-events-none`}></div>
@@ -73,7 +77,7 @@ const PlayerRow: React.FC<{ player: Partial<Player>; rank: number; theme: string
                     <span className={`text-sm truncate max-w-[100px] sm:max-w-[140px] ${nameColor}`}>
                         {player.username || 'Unknown'} {isMe && '(You)'}
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mt-0.5">
                         <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/30 dark:bg-black/40 border border-slate-200 dark:border-white/5 text-slate-500`}>
                             Lvl {player.level || 1}
                         </span>
@@ -82,15 +86,21 @@ const PlayerRow: React.FC<{ player: Partial<Player>; rank: number; theme: string
                                 <span>⭐</span> {player.stars}
                             </span>
                         )}
+                        {/* ✅ FIX: Display Referral Count for users visibly on the leaderboard */}
+                        {displayReferrals > 0 && (
+                            <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-0.5 ml-1">
+                                <span>👥</span> {displayReferrals}
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>
             
             <div className="flex flex-col items-end gap-0.5 z-10 shrink-0 pl-2">
                 <div className="flex items-center gap-1.5">
-                    {/* ✅ COMPACT NUMBER FORMAT USED HERE */}
+                    {/* ✅ FIX: Formatter applied safely to balance */}
                     <span className={`font-mono font-bold text-sm ${balanceColor}`}>
-                        {formatCompactNumber(Number(player.balance || 0))}
+                        {formatCompactNumber(player.balance || 0)}
                     </span>
                     <span className="text-[10px] opacity-60 text-slate-500 dark:text-slate-400">Dust</span>
                 </div>
@@ -114,7 +124,6 @@ const LeaderboardView: React.FC<LeaderboardViewProps> = ({ player, theme, referr
     }
   };
 
-  // ✅ SAFELY GRABS REFERRALS FROM EITHER FIELD TO PREVENT '0' BUG
   const actualReferrals = player.referralCount || (player as any).referralcount || 0;
   const earnedStars = actualReferrals * referralReward;
 
@@ -127,7 +136,7 @@ const LeaderboardView: React.FC<LeaderboardViewProps> = ({ player, theme, referr
   return (
     <div className="pt-6 px-4 pb-32 flex flex-col gap-8">
       
-      {/* Referral Section - "Alliance Mainframe" */}
+      {/* Referral Section */}
       <div className={`relative overflow-hidden rounded-[2rem] bg-white/60 dark:bg-slate-900 border border-white/40 dark:border-${theme}-500/30 shadow-2xl group transition-all backdrop-blur-xl`}>
         <div className={`absolute inset-0 bg-gradient-to-br from-${theme}-100/40 via-transparent to-slate-100/50 dark:from-${theme}-900/40 dark:via-transparent dark:to-black`}></div>
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay"></div>
