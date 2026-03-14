@@ -24,17 +24,16 @@ export const supabase = createClient(url, key);
 
 /**
  * Logs application errors to the Supabase 'error_logs' table.
+ * ✅ FIX: Matched exactly to your DB schema (message, details, user_id).
  */
 export const logError = async (message: string, stack?: string, userId?: string) => {
     if (url === 'https://placeholder.supabase.co' || isPlaceholder) return;
 
     try {
         await supabase.from('error_logs').insert({
-            message,
-            stack: stack || '',
-            user_id: userId || 'anonymous',
-            timestamp: new Date().toISOString(),
-            platform: navigator.userAgent
+            message: message,
+            details: stack || 'No stack trace provided',
+            user_id: userId || 'anonymous'
         });
     } catch (e) {
         // Silent fail to avoid infinite loop of logging errors about logging errors
@@ -43,7 +42,7 @@ export const logError = async (message: string, stack?: string, userId?: string)
 
 /**
  * Fetches the top players by balance for the leaderboard.
- * Mapped from lowercase DB columns to CamelCase App objects.
+ * ✅ FIX: Spread `gamestate` FIRST so authoritative DB columns overwrite stale JSON data.
  */
 export const fetchLeaderboard = async () => {
     if (url === 'https://placeholder.supabase.co' || isPlaceholder) return [];
@@ -57,19 +56,20 @@ export const fetchLeaderboard = async () => {
     if (error) return [];
 
     return data.map((row: any) => ({
+        ...row.gamestate, // Spread this first!
         telegramId: row.telegramid,
         username: row.username,
         balance: row.balance,
         level: row.level,
         stars: row.stars,
         referralCount: row.referralcount,
-        photoUrl: row.gamestate?.photoUrl || null,
-        ...row.gamestate 
+        photoUrl: row.gamestate?.photoUrl || row.photourl || null
     }));
 };
 
 /**
  * Fetches ALL players (Admin Use Only)
+ * ✅ FIX: Spread `gamestate` FIRST here as well.
  */
 export const fetchAllPlayersAdmin = async () => {
     if (url === 'https://placeholder.supabase.co' || isPlaceholder) return [];
@@ -82,6 +82,7 @@ export const fetchAllPlayersAdmin = async () => {
     if (error) return [];
 
     return data.map((row: any) => ({
+        ...row.gamestate, // Spread this first!
         telegramId: row.telegramid,
         username: row.username,
         balance: row.balance,
@@ -90,9 +91,8 @@ export const fetchAllPlayersAdmin = async () => {
         referralCount: row.referralcount,
         invitedBy: row.invitedby,
         isBanned: row.isbanned, 
-        photoUrl: row.gamestate?.photoUrl || null,
-        withdrawalHistory: row.gamestate?.withdrawalHistory || [],
-        ...row.gamestate
+        photoUrl: row.gamestate?.photoUrl || row.photourl || null,
+        withdrawalHistory: row.gamestate?.withdrawalHistory || []
     }));
 }
 
@@ -113,24 +113,21 @@ export const fetchGameSettings = async () => {
 };
 
 /**
- * ✅ CRITICAL FIX: Save Game Settings
+ * Save Game Settings
  * Scrubs 'undefined' properties which cause Postgres JSONB to fail silently.
- * Returns a boolean so Admin.tsx knows if it succeeded or failed.
  */
 export const saveGameSettings = async (settings: any) => {
     if (url === 'https://placeholder.supabase.co' || isPlaceholder) return false;
 
     try {
-        // 1. Sanitize data to pure JSON (removes undefined values that crash Postgres JSONB)
         const cleanSettings = JSON.parse(JSON.stringify(settings));
         
-        // 2. Upsert to Supabase
         const { error } = await supabase
             .from('game_settings')
             .upsert({ 
                 id: 'global', 
                 settings: cleanSettings,
-                lastupdated: new Date().toISOString() // Ensure lowercase 'lastupdated'
+                lastupdated: new Date().toISOString()
             }, { onConflict: 'id' }); 
         
         if (error) {
