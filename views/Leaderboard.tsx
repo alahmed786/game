@@ -1,7 +1,7 @@
 import React from 'react';
 import { Player, Theme, LeaderboardViewProps } from '../types';
 
-// ✅ FOOLPROOF FIX: Using native browser API for compact numbers (2600000 -> 2.6m)
+// FOOLPROOF FIX: Using native browser API for compact numbers (2600000 -> 2.6m)
 const formatCompactNumber = (num: number | string) => {
     const parsed = Number(num);
     if (isNaN(parsed) || parsed === 0) return '0';
@@ -10,12 +10,6 @@ const formatCompactNumber = (num: number | string) => {
         maximumFractionDigits: 1 
     }).format(parsed).toLowerCase(); 
 };
-
-const DUMMY_LEADERS: Partial<Player>[] = [
-    { telegramId: 'bot1', username: 'AstroGeneral_X', balance: 25000000, level: 52, stars: 1500, photoUrl: '' },
-    { telegramId: 'bot2', username: 'CryptoValkyrie', balance: 18500000, level: 48, stars: 920, photoUrl: '' },
-    { telegramId: 'bot3', username: 'QuantumDrifter', balance: 12800000, level: 41, stars: 610, photoUrl: '' },
-];
 
 const PlayerRow: React.FC<{ player: Partial<Player>; rank: number; theme: string; isMe?: boolean }> = ({ player, rank, theme, isMe }) => {
     let containerStyles = "bg-white/40 dark:bg-slate-900/30 border-white/30 dark:border-white/5";
@@ -61,7 +55,7 @@ const PlayerRow: React.FC<{ player: Partial<Player>; rank: number; theme: string
                     <img 
                         src={player.photoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${player.username}`} 
                         className={`w-10 h-10 rounded-xl bg-white dark:bg-slate-950 shadow-lg object-cover ${rank === 1 ? 'border-2 border-yellow-500' : 'border border-white/20 dark:border-white/10'}`}
-                        alt=""
+                        alt="Commander Avatar"
                     />
                     {isMe && <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-slate-900"></div>}
                 </div>
@@ -79,7 +73,7 @@ const PlayerRow: React.FC<{ player: Partial<Player>; rank: number; theme: string
                                 <span>⭐</span> {formatCompactNumber(player.stars || 0)}
                             </span>
                         )}
-                        {/* ✅ FIX: Display Recruits on leaderboard rows */}
+                        {/* Display Recruits on leaderboard rows */}
                         {displayReferrals > 0 && (
                             <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-0.5 ml-1">
                                 <span>👥</span> {formatCompactNumber(displayReferrals)}
@@ -91,7 +85,6 @@ const PlayerRow: React.FC<{ player: Partial<Player>; rank: number; theme: string
             
             <div className="flex flex-col items-end gap-0.5 z-10 shrink-0 pl-2">
                 <div className="flex items-center gap-1.5">
-                    {/* ✅ FIX: Perfect Formatter */}
                     <span className={`font-mono font-bold text-sm ${balanceColor}`}>
                         {formatCompactNumber(player.balance || 0)}
                     </span>
@@ -120,7 +113,8 @@ const LeaderboardView: React.FC<LeaderboardViewProps> = ({ player, theme, referr
   const actualReferrals = player.referralCount || 0;
   const earnedStars = actualReferrals * referralReward;
 
-  const activeLeaderboard = (leaderboardData && leaderboardData.length > 0) ? leaderboardData : DUMMY_LEADERS;
+  // STRICT DB USAGE: No dummy data fallback
+  const activeLeaderboard = leaderboardData || [];
   const displayLimit = 50;
   const topPlayers = activeLeaderboard.slice(0, displayLimit);
   const userInTop = topPlayers.some(p => p.telegramId === player.telegramId);
@@ -175,23 +169,36 @@ const LeaderboardView: React.FC<LeaderboardViewProps> = ({ player, theme, referr
         </div>
         
         <div className="flex flex-col gap-2 relative">
-            {topPlayers.map((leader, index) => (
-                <PlayerRow 
-                    key={leader.telegramId || index} 
-                    player={leader} 
-                    rank={index + 1} 
-                    theme={theme} 
-                    isMe={leader.telegramId === player.telegramId}
-                />
-            ))}
+            {topPlayers.length > 0 ? (
+                topPlayers.map((leader, index) => (
+                    <PlayerRow 
+                        key={leader.telegramId || index} 
+                        player={leader} 
+                        rank={index + 1} 
+                        theme={theme} 
+                        isMe={leader.telegramId === player.telegramId}
+                    />
+                ))
+            ) : (
+                <div className="py-8 text-center border rounded-2xl bg-white/30 dark:bg-slate-900/30 border-white/20 dark:border-white/5 backdrop-blur-sm">
+                    <div className="text-2xl mb-2 animate-pulse">📡</div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Awaiting network data...</p>
+                </div>
+            )}
 
-            {!userInTop && (
-                <PlayerRow 
-                    player={player} 
-                    rank={userRank || 999} 
-                    theme={theme} 
-                    isMe={true} 
-                />
+            {/* Always show the user at the bottom if they aren't in the top 50 */}
+            {!userInTop && topPlayers.length > 0 && (
+                <>
+                    <div className="flex justify-center py-1">
+                        <span className="text-slate-400 dark:text-slate-600 font-black tracking-widest">•••</span>
+                    </div>
+                    <PlayerRow 
+                        player={player} 
+                        rank={userRank || 999} 
+                        theme={theme} 
+                        isMe={true} 
+                    />
+                </>
             )}
         </div>
       </div>
